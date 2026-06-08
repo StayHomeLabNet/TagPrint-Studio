@@ -1,0 +1,9 @@
+﻿Item Code,Style,Description,en,ja,Price Plus Gst,Creditor Supplier Code,Last Updated,tagPrint
+4901234567894,FD01,Organic Green Tea Powder 80g,Organic Green Tea Powder 80g,有機抹茶パウダー 80g,12.5,FOOD-101,2026-05-02,true
+4901234567801,FD02,Japanese Natto Starter Pack,Natto Starter Pack,納豆スターターパック,8.9,FOOD-102,2026-05-02,false
+9300675001587,HM01,Reusable Glass Bottle 750ml,Reusable Glass Bottle 750ml,再利用ガラスボトル 750ml,15,HOME-201,2026-05-03,true
+9300675001594,HM02,Eco Lunch Box Large,Eco Lunch Box Large,エコランチボックス 大,18.75,HOME-202,2026-05-03,true
+1234567890128,QR01,QR Sample - Product Web Page,https://example.com/products/qr01,商品ページQRサンプル,0,QR-001,2026-05-04,true
+ABC-TEST-001,BC01,Code128 Sample - Internal SKU,Internal SKU Barcode,社内SKUバーコード,5.5,BARCODE-001,2026-05-04,true
+ABC-TEST-002,BC02,Code128 Sample - Shelf Label,Shelf Label Barcode,棚札バーコード,6.8,BARCODE-002,2026-05-05,false
+,EMPTY,Empty barcode warning sample,Empty barcode warning,空バーコード警告サンプル,1,TEST-EMPTY,2026-05-05,true

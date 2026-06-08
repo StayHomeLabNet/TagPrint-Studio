@@ -1,0 +1,119 @@
+# ------------------------------------------------------------------------------
+# TagPrint Studio / .NET / Visual Studio
+# ------------------------------------------------------------------------------
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+out/
+publish/
+artifacts/
+
+# Visual Studio
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.sln.DotSettings.user
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# .NET generated files
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+.nuget/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+!**/packages/build/
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage.*.xml
+*.opencover.xml
+*.cobertura.xml
+
+# Logs / diagnostics
+*.log
+[Ll]og/
+[Ll]ogs/
+*.binlog
+
+# Windows / macOS / Linux system files
+Thumbs.db
+Desktop.ini
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+~$*
+*~
+
+# App runtime/export output generated during local testing
+# Keep sample CSV files and docs/images tracked.
+TagPrint Studio Exports/
+exports/
+output/
+outputs/
+*.pdf
+*.png
+!docs/**/*.png
+!samples/**/*.png
+
+# Local app data accidentally copied into the repository
+AppData/
+TagPrintStudio/
+TagPrint Studio/
+settings/*.local.json
+recent/*.local.json
+
+# Crash dumps
+*.dmp
+*.mdmp
+
+# Optional installer/package outputs
+*.msi
+*.msix
+*.appx
+*.zip
+*.7z
+*.rar
+!*.sln.zip
