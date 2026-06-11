@@ -2,10 +2,16 @@ name: build-test
 
 on:
   push:
+    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  test:
+  build-test:
+    name: build-test
     runs-on: windows-latest
 
     steps:
