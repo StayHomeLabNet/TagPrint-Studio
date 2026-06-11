@@ -14,6 +14,10 @@ public sealed partial class ServiceTests
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
+    [Theory]
+    [InlineData(PrintConditionType.Number, PrintConditionOperator.GreaterThanOrEqual, "100", "100", true)]
+    [InlineData(PrintConditionType.Number, PrintConditionOperator.LessThan, "100", "99", true)]
+    [InlineData(PrintConditionType.Bool, PrintConditionOperator.IsTrue, "", "yes", true)]
     [InlineData(PrintConditionType.Bool, PrintConditionOperator.IsFalse, "", "0", true)]
     [InlineData(PrintConditionType.Date, PrintConditionOperator.OnOrAfter, "2026-04-01", "2026/4/25", true)]
     [InlineData(PrintConditionType.Date, PrintConditionOperator.OnOrBefore, "2026-04-01", "2026/4/25", false)]

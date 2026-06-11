@@ -81,7 +81,7 @@ public class LayoutElement
     public double FontSize { get; set; } = 10;
     public FontSizeSourceType FontSizeSource { get; set; } = FontSizeSourceType.Fixed;
     public string FontSizeFieldId { get; set; } = "";
-    public double MinFontSize { get; set; } = 6;
+    public double MinFontSize { get; set; } = 2;
     public double MaxFontSize { get; set; } = 48;
     public bool Bold { get; set; }
     public string TextColor { get; set; } = "#FF000000";
@@ -266,25 +266,6 @@ public class CsvPreviewRowContext
     public bool IsDirty { get; set; }
 }
 
-public class OutputOptions
-{
-    public OutputFormatType OutputFormat { get; set; }
-    public OutputScopeType OutputScope { get; set; }
-    public string OutputFolder { get; set; } = "";
-    public bool ConfirmOverwrite { get; set; } = true;
-    public int OutputDpi { get; set; } = 300;
-    public PrintScalingMode PrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
-    public PrintSortMode PrintSortMode { get; set; } = PrintSortMode.LoadOrder;
-    public string PrintSortFieldId { get; set; } = "";
-    public PrintSortValueType PrintSortValueType { get; set; } = PrintSortValueType.Text;
-    public double PrintOffsetXmm { get; set; }
-    public double PrintOffsetYmm { get; set; }
-    [JsonIgnore]
-    public PrinterSettings? PrinterSettings { get; set; }
-    [JsonIgnore]
-    public int? ExpectedPageCount { get; set; }
-}
-
 public class RecentFileEntry { public string Path { get; set; } = ""; public DateTime LastOpenedAt { get; set; } }
 public class ValidationResult { public bool IsValid => Errors.Count == 0; public List<string> Errors { get; set; } = []; public List<string> Warnings { get; set; } = []; }
 
@@ -313,6 +294,7 @@ public class AppSettings
     public bool DefaultHasHeaderRow { get; set; } = true;
     public bool ConfirmOverwrite { get; set; } = true;
     public bool ConfirmPrintTargets { get; set; } = true;
+    public string LastPrintTargetSearchColumnId { get; set; } = "sortValue";
     public int LargePrintPageWarningThreshold { get; set; } = 100;
     public int BackupCleanupRetentionDays { get; set; } = 30;
     public int BackupCleanupMaxCountPerCsv { get; set; } = 10;

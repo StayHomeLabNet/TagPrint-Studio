@@ -1,10 +1,25 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.0.6** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.0.7** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
 It supports CSV-based field mapping, layout editing, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, and backup cleanup.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## What's New in v1.0.7
+
+- Polished the **Tag Finder** Japanese/English UI.
+  - Moved Tag Finder labels, buttons, messages, and column headers to the shared localization resource system.
+  - Fixed remaining garbled Japanese UI text and kept startup checks for older mojibake preset/layout files.
+  - Adjusted the **Show True Only** button width and font size so the Japanese label fits reliably.
+  - Cleaned the Tag Finder preview title so it no longer shows unnecessary suffix text.
+- Improved print queue CSV safety.
+  - Queue CSV files now avoid overwriting same-second files by adding suffixes such as `-2`, `-3`, and so on when needed.
+  - Queue creation from Tag Finder saves the parent CSV flags first, so the original row remains the first normal copy.
+  - Save-to-queue flow avoids duplicate CSV flag saves.
+- Documented app data storage location management.
+  - Settings can change, open, or reset the app data root used for `layouts`, `presets`, `recent`, and `settings`.
+- Updated README files, release notes, and English/Japanese manuals for v1.0.7.
 
 ## What's New in v1.0.6
 
@@ -156,6 +171,7 @@ QR Code generation uses the `QRCoder` NuGet package.
 - The small preview can open the current row directly in Layout Designer.
 - Print quantity support with queue CSV creation.
 - Delete all queue CSV files from Tag Finder.
+- Queue CSV files use timestamped names and automatically add numeric suffixes when needed to avoid overwriting existing queue files.
 
 ### CSV Duplicate Cleanup and Merge
 
@@ -175,6 +191,7 @@ QR Code generation uses the `QRCoder` NuGet package.
 ### Settings
 
 - Japanese/English UI language.
+- Change, open, or reset the app data storage location.
 - Startup CSV and startup folder.
 - Recent CSV and recent output folders.
 - Last used preset, layout, output folder, DPI, output format, print mode, and related output settings.
@@ -271,4 +288,4 @@ bin/Release/net10.0-windows/win-x64/publish/
 
 ## Version
 
-Current version: **v1.0.6**
+Current version: **v1.0.7**

@@ -87,7 +87,7 @@ public sealed partial class LayoutDesignerForm
     private static void ConfigureCanvasZoomButton(Button button)
     {
         button.AutoSize = false;
-        button.Width = 72;
+        button.Width = 104;
         button.Height = ToolbarControlHeight;
         button.Margin = new Padding(0, 0, 0, 6);
         button.Padding = new Padding(4, 0, 4, 0);

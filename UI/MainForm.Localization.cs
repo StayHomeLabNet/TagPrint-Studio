@@ -82,6 +82,9 @@ public sealed partial class MainForm : Form
         if (settingsImportMenuItem is not null) settingsImportMenuItem.Text = SettingsImportMenuText();
         if (settingsBackupMenuItem is not null) settingsBackupMenuItem.Text = SettingsBackupMenuText();
         if (backupCleanupMenuItem is not null) backupCleanupMenuItem.Text = BackupCleanupMenuText();
+        if (appDataLocationMenuItem is not null) appDataLocationMenuItem.Text = AppDataLocationMenuText();
+        if (openAppDataLocationMenuItem is not null) openAppDataLocationMenuItem.Text = OpenAppDataLocationMenuText();
+        if (resetAppDataLocationMenuItem is not null) resetAppDataLocationMenuItem.Text = ResetAppDataLocationMenuText();
         if (confirmPrintTargetsMenuItem is not null) confirmPrintTargetsMenuItem.Checked = settings.ConfirmPrintTargets;
         UpdateLargePrintWarningMenuText();
         if (openSettingsLocationMenuItem is not null) openSettingsLocationMenuItem.Text = OpenSettingsLocationMenuText();

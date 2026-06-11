@@ -90,8 +90,4 @@ public sealed partial class ServiceTests
         Assert.Contains("line", file.Note, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Theory]
-    [InlineData(PrintConditionType.Number, PrintConditionOperator.GreaterThanOrEqual, "100", "100", true)]
-    [InlineData(PrintConditionType.Number, PrintConditionOperator.LessThan, "100", "99", true)]
-    [InlineData(PrintConditionType.Bool, PrintConditionOperator.IsTrue, "", "yes", true)]
 }

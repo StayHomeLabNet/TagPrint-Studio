@@ -1,10 +1,10 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.0.6**
+Target version: **TagPrint Studio v1.0.7**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV field mapping, layout design, page and single-tag preview, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, and backup cleanup.
+It supports CSV field mapping, layout design, page and single-tag preview, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, and custom app data storage locations.
 
 ---
 
@@ -237,6 +237,7 @@ Tag Finder can create queue CSV files when print quantity is 2 or more.
 Queue file behavior:
 
 - File name: `print_queue_yyyyMMdd_HHmmss.csv`
+- If the same timestamp already exists, suffixes such as `-2`, `-3`, and so on are added automatically.
 - Location: same folder as the parent CSV.
 - Row count: `print quantity - 1`.
 - The parent CSV row remains the normal first copy.
@@ -567,13 +568,13 @@ Controls:
 | Order column | Optional column such as `tagPrintOrder` used to preserve output-marking order |
 | Print quantity | Number of copies to print |
 | Preview | Show/hide small tag preview |
-| true only | Show rows where save column is true |
+| Show True Only | Show rows where the save column is `true` |
 | Auto-check after search | Automatically check matching rows |
 | Delete all queue CSV | Delete queue CSV files |
 | Open in Layout Designer | Open the current preview row in Layout Designer |
 | Save | Write value to checked rows and create queue CSV if quantity is 2 or more |
 | Save & Next | Save and move to next search |
-| Queue | Create queue CSV based on checked rows |
+| Queue | Create queue CSV based on checked rows, or the active row when Show True Only is active |
 | Queue & Next | Create queue CSV and move to next search |
 
 When a save column is added, the app adds that column to all loaded CSV files to avoid column-count mismatch errors.
@@ -581,17 +582,19 @@ When a save column is added, the app adds that column to all loaded CSV files to
 Queue behavior:
 
 - Queue file name: `print_queue_yyyyMMdd_HHmmss.csv`
+- If the same timestamp already exists, suffixes such as `-2`, `-3`, and so on are added automatically.
 - Queue file location: same folder as the parent CSV.
 - Queue row count: `print quantity - 1`.
 - The original checked CSV row remains the first normal copy.
 - Save and queue actions reset print quantity back to `1` after completion.
-- When **Show true only** is active, queue creation uses the active row instead of every visible checked row.
+- When **Show True Only** is active, queue creation uses the active row instead of every visible checked row.
 
 Preview behavior:
 
 - The small preview can be shown or hidden.
 - The visibility state is remembered.
 - The current preview row can be opened directly in Layout Designer.
+- The preview title shows only the preview label and no longer appends file/row suffix text.
 
 Queue cleanup:
 
@@ -697,6 +700,9 @@ The Settings menu manages app behavior.
 | Open Startup Folder | Opens startup folder |
 | Clear Startup Folder | Clears startup folder |
 | Backup File Cleanup | Review and clean timestamped CSV backup files |
+| Change App Data Storage Location | Choose a custom app data root for layouts, presets, recent files, and settings |
+| Open App Data Location | Open the current app data root folder |
+| Reset App Data Location | Return to the default app data location after restart |
 | Confirm Print Targets Before Output | Enables or disables print target confirmation |
 | Import Settings | Import settings ZIP |
 | Backup Settings | Create settings ZIP |
@@ -734,9 +740,27 @@ When the startup folder is configured or changed, the app can also update the Ba
 
 ---
 
+### 14.4 App Data Storage Location
+
+The app data root can be changed from the Settings menu. This location is used for app-managed folders such as:
+
+```text
+layouts/
+presets/
+recent/
+settings/
+cache/
+temp/
+logs/
+```
+
+When changing the app data location, the app can optionally copy the current `layouts`, `presets`, `recent`, and `settings` folders to the new location. Restart the app for the new location to take effect.
+
+---
+
 ## 15. Files and Data Locations
 
-Default app data folders are under the user's application data area.
+Default app data folders are under the user's application data area unless a custom app data root has been selected from Settings.
 
 Main folders:
 
@@ -749,6 +773,8 @@ Main folders:
 | `cache` | Local cache |
 | `temp` | Temporary files |
 | `logs` | Logs |
+
+The app data root can be changed, opened, or reset from the Settings menu. Changing it can copy the current `layouts`, `presets`, `recent`, and `settings` folders to the new location, and requires an app restart.
 
 Default output folder:
 

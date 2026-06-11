@@ -231,6 +231,142 @@ public sealed partial class MainForm : Form
         });
     }
 
+    private void ConfigureAppDataLocation()
+    {
+        using var dialog = new FolderBrowserDialog
+        {
+            SelectedPath = paths.AppDataRoot
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        var selectedRoot = dialog.SelectedPath.Trim();
+        if (string.IsNullOrWhiteSpace(selectedRoot))
+        {
+            return;
+        }
+
+        var normalizedSelected = Path.GetFullPath(selectedRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedCurrent = Path.GetFullPath(paths.AppDataRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(normalizedSelected, normalizedCurrent, StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "選択した場所は、現在のアプリデータ保存場所と同じです。"
+                    : "The selected location is already the current app data storage location.",
+                LocalizationService.T("common.appTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        var copyPrompt = MessageBox.Show(
+            LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                ? $"新しいアプリデータ保存場所を設定します。\n\n{selectedRoot}\n\n現在の layouts / presets / recent / settings をコピーしますか？\n\nはい: コピーして切り替え\nいいえ: 空の保存先として切り替え\nキャンセル: 変更しない"
+                : $"Set a new app data storage location:\n\n{selectedRoot}\n\nCopy the current layouts / presets / recent / settings?\n\nYes: copy current data and switch\nNo: switch to an empty location\nCancel: keep the current location",
+            LocalizationService.T("common.confirm"),
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question);
+        if (copyPrompt == DialogResult.Cancel)
+        {
+            return;
+        }
+
+        try
+        {
+            appStorageLocationService.PrepareLocation(paths, selectedRoot, copyPrompt == DialogResult.Yes);
+            appStorageLocationService.UseCustomLocation(selectedRoot);
+
+            var restartNow = MessageBox.Show(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "アプリデータ保存場所を更新しました。反映するには再起動が必要です。\n\n今すぐ再起動しますか？"
+                    : "The app data storage location has been updated. A restart is required to apply it.\n\nRestart now?",
+                LocalizationService.T("common.appTitle"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+            if (restartNow == DialogResult.Yes)
+            {
+                Application.Restart();
+                Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowExceptionDetails(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "アプリデータ保存場所エラー" : "App Data Location Error",
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "アプリデータ保存場所の変更中にエラーが発生しました。"
+                    : "An error occurred while changing the app data storage location.",
+                ex);
+        }
+    }
+
+    private void OpenAppDataLocation()
+    {
+        Directory.CreateDirectory(paths.AppDataRoot);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = paths.AppDataRoot,
+            UseShellExecute = true
+        });
+    }
+
+    private void ResetAppDataLocation()
+    {
+        if (appStorageLocationService.IsUsingDefaultLocation())
+        {
+            MessageBox.Show(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "アプリデータ保存場所は、すでに既定の場所です。"
+                    : "The app data storage location is already using the default location.",
+                LocalizationService.T("common.appTitle"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        if (MessageBox.Show(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "アプリデータ保存場所を既定に戻します。反映するには再起動が必要です。\n\n続行しますか？"
+                    : "Reset the app data storage location to the default. A restart is required to apply it.\n\nDo you want to continue?",
+                LocalizationService.T("common.confirm"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            appStorageLocationService.ResetToDefaultLocation();
+            var restartNow = MessageBox.Show(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "既定のアプリデータ保存場所に戻しました。\n\n今すぐ再起動しますか？"
+                    : "The app data storage location was reset to the default.\n\nRestart now?",
+                LocalizationService.T("common.appTitle"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information);
+
+            if (restartNow == DialogResult.Yes)
+            {
+                Application.Restart();
+                Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowExceptionDetails(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "アプリデータ保存場所エラー" : "App Data Location Error",
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "アプリデータ保存場所のリセット中にエラーが発生しました。"
+                    : "An error occurred while resetting the app data storage location.",
+                ex);
+        }
+    }
+
     private void BackupSettingsArchive()
     {
         SaveCurrentSettings();

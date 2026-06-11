@@ -20,6 +20,7 @@ public sealed partial class TagFinderDialog : Form
     private readonly IPreviewRenderService previewRenderer = new PreviewRenderService(new UnitConversionService());
     private readonly ITagFinderService tagFinderService = new TagFinderService();
     private readonly ITagFinderCsvService tagFinderCsvService = new TagFinderCsvService();
+    private readonly ITagFinderWorkflowService tagFinderWorkflowService = new TagFinderWorkflowService();
     private readonly bool hasHeaderRow;
     private readonly AppSettings settings;
     private readonly Action saveSettings;
@@ -47,6 +48,7 @@ public sealed partial class TagFinderDialog : Form
     public bool CsvSaved { get; private set; }
     public string QueueCsvPath { get; private set; } = "";
     public List<CsvPreviewRowContext>? LayoutDesignerPreviewRows { get; private set; }
+    public int LayoutDesignerInitialPreviewIndex { get; private set; }
 
     public TagFinderDialog(
         IEnumerable<FieldDefinition> fields,
@@ -69,10 +71,10 @@ public sealed partial class TagFinderDialog : Form
         this.saveSettings = saveSettings;
         this.queueCreated = queueCreated;
 
-        Text = L("タグファインダー", "Tag Finder");
-        Width = 1180;
+        Text = T("tagFinder.title");
+        Width = 1220;
         Height = 760;
-        MinimumSize = new Size(980, 620);
+        MinimumSize = new Size(1040, 620);
         StartPosition = FormStartPosition.CenterParent;
         BackColor = Color.FromArgb(244, 246, 248);
         Font = new Font("Segoe UI", 10f);
@@ -86,6 +88,9 @@ public sealed partial class TagFinderDialog : Form
         FormClosing += TagFinderDialog_FormClosing;
         FormClosed += (_, _) => SetTagPreviewImage(null);
     }
+
+    private static string T(string key) => LocalizationService.T(key);
+    private static string TF(string key, params object[] args) => LocalizationService.T(key, args);
 
     private void FocusSearchValue()
     {
@@ -135,7 +140,7 @@ public sealed partial class TagFinderDialog : Form
 
         if (searchFieldCombo.SelectedItem is not FieldComboItem selected || selected.Field.ColumnIndex is not int columnIndex)
         {
-            statusLabel.Text = L("検索項目を選択してください。", "Select a search field.");
+            statusLabel.Text = T("tagFinder.message.selectSearchField");
             UpdateTagPreview();
             return;
         }
@@ -143,27 +148,25 @@ public sealed partial class TagFinderDialog : Form
         var query = searchTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(query))
         {
-            statusLabel.Text = L("検索値を入力してください。", "Enter a search value.");
+            statusLabel.Text = T("tagFinder.message.enterSearchValue");
             UpdateTagPreview();
             return;
         }
 
         foreach (var match in tagFinderService.Search(csvFiles, columnIndex, query, FlagColumnName(), autoCheckAfterSearchCheck.Checked))
         {
-            resultRows.Add(new TagFinderResultRow(match.File, match.RowIndex, match.Checked));
+            resultRows.Add(new TagFinderResultRow { File = match.File, RowIndex = match.RowIndex, Checked = match.Checked });
         }
 
         statusLabel.Text = resultRows.Count == 0
-            ? L("一致する行はありません。", "No matching rows.")
-            : L($"{resultRows.Count} 件見つかりました。", $"Found {resultRows.Count} row(s).");
+            ? T("tagFinder.message.noMatchingRows")
+            : TF("tagFinder.message.foundRows", resultRows.Count);
 
         if (autoCheckAfterSearchCheck.Checked && resultRows.Count > 0)
         {
             if ((int)printQuantityBox.Value > 1)
             {
-                statusLabel.Text = L(
-                    $"{resultRows.Count} 件見つかりました。対象にチェックしました。キュー作成を押してください。",
-                    $"Found {resultRows.Count} row(s). Checked targets. Press Create Queue.");
+                statusLabel.Text = TF("tagFinder.message.foundRowsCheckedCreateQueue", resultRows.Count);
             }
             else
             {
@@ -187,14 +190,14 @@ public sealed partial class TagFinderDialog : Form
 
         foreach (var match in tagFinderService.CheckedRows(csvFiles, FlagColumnName()))
         {
-            resultRows.Add(new TagFinderResultRow(match.File, match.RowIndex, match.Checked));
+            resultRows.Add(new TagFinderResultRow { File = match.File, RowIndex = match.RowIndex, Checked = match.Checked });
         }
 
         SortResultRowsByOrderColumn();
 
         statusLabel.Text = resultRows.Count == 0
-            ? L("保存列が true の行はありません。", "No rows with true in the flag column.")
-            : L($"保存列が true の行を {resultRows.Count} 件表示しています。", $"Showing {resultRows.Count} row(s) with true in the flag column.");
+            ? T("tagFinder.message.noTrueRows")
+            : TF("tagFinder.message.showingTrueRows", resultRows.Count);
 
         UpdateTargetHeaderCheckState();
         RefreshTargetCheckColumn();
@@ -222,7 +225,7 @@ public sealed partial class TagFinderDialog : Form
         if (CurrentResultRow() is not { } result)
         {
             SetTagPreviewImage(null);
-            tagPreviewLabel.Text = L("タグプレビュー", "Tag Preview");
+            tagPreviewLabel.Text = T("tagFinder.label.tagPreview");
             return;
         }
 
@@ -231,7 +234,7 @@ public sealed partial class TagFinderDialog : Form
             var data = OutputService.MapRow(previewPreset, result.File.Rows[result.RowIndex]);
             var image = previewRenderer.RenderSingleTag(layout, previewPreset, data, TagPreviewScale());
             SetTagPreviewImage(image);
-            tagPreviewLabel.Text = $"{L("タグプレビュー", "Tag Preview")} - {result.FileName} {L("行", "Row")} {result.DisplayRowNumber}";
+            tagPreviewLabel.Text = T("tagFinder.label.tagPreview");
         }
         catch (Exception ex)
         {
@@ -244,48 +247,6 @@ public sealed partial class TagFinderDialog : Form
     {
         if (resultsGrid.CurrentRow?.DataBoundItem is TagFinderResultRow current) return current;
         return resultsGrid.SelectedRows.Cast<DataGridViewRow>().FirstOrDefault()?.DataBoundItem as TagFinderResultRow;
-    }
-
-    private void OpenCurrentPreviewInLayoutDesigner()
-    {
-        if (CurrentResultRow() is not { } result)
-        {
-            statusLabel.Text = L("レイアウトデザイナーで開く行を選択してください。", "Select a row to open in Layout Designer.");
-            return;
-        }
-        if (CsvFileUtility.IsPrintQueueCsv(result.File.FilePath))
-        {
-            MessageBox.Show(
-                L("キューCSVのタグはレイアウトデザイナーで編集できません。親CSVのタグを選択してください。", "Queue CSV tags cannot be edited in Layout Designer. Select the tag from the parent CSV."),
-                Text,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-            return;
-        }
-
-        try
-        {
-            LayoutDesignerPreviewRows =
-            [
-                new CsvPreviewRowContext
-                {
-                    FilePath = result.File.FilePath,
-                    FileName = result.File.FileName,
-                    EncodingName = result.File.EncodingName,
-                    HasHeaderRow = hasHeaderRow,
-                    HeaderRow = hasHeaderRow ? result.File.HeaderRow : null,
-                    AllRows = result.File.Rows,
-                    RowIndex = result.RowIndex,
-                    Values = result.File.Rows[result.RowIndex],
-                    Data = OutputService.MapRow(previewPreset, result.File.Rows[result.RowIndex])
-                }
-            ];
-            Close();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
     }
 
     private float TagPreviewScale()
@@ -321,6 +282,7 @@ public sealed partial class TagFinderDialog : Form
             UpdateTagPreview();
         }
     }
+
     private void ResultsGrid_ColumnHeaderMouseClick(object? sender, DataGridViewCellMouseEventArgs e)
     {
         if (e.ColumnIndex < 0 || resultsGrid.Columns[e.ColumnIndex].Name != "TargetCheckColumn")
@@ -414,7 +376,7 @@ public sealed partial class TagFinderDialog : Form
     }
 
     private static string TargetHeaderText(bool isChecked) =>
-        isChecked ? L("☑対象", "☑ Flag") : L("☐対象", "☐ Flag");
+        LocalizationService.T(isChecked ? "tagFinder.column.targetChecked" : "tagFinder.column.targetUnchecked");
 
     private void ResultsGrid_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
     {
@@ -486,12 +448,4 @@ public sealed partial class TagFinderDialog : Form
         public override string ToString() => string.IsNullOrWhiteSpace(Field.DisplayName) ? Field.FieldId : Field.DisplayName;
     }
 
-    private sealed class TagFinderResultRow(CsvFileItem file, int rowIndex, bool isChecked)
-    {
-        public CsvFileItem File { get; } = file;
-        public int RowIndex { get; } = rowIndex;
-        public bool Checked { get; set; } = isChecked;
-        public string FileName => File.FileName;
-        public int DisplayRowNumber => RowIndex + 1;
-    }
 }

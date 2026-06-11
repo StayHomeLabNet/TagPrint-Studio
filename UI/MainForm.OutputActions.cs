@@ -155,7 +155,9 @@ public sealed partial class MainForm
             LocalizationService.T("printTarget.title"),
             summary,
             data.CsvSummaries,
-            data.OrderedRows);
+            data.OrderedRows,
+            settings,
+            SaveCurrentSettings);
         return dialog.ShowDialog(this) == DialogResult.OK;
     }
 

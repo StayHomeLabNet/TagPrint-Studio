@@ -12,32 +12,16 @@ public sealed partial class TagFinderDialog
         CommitGridEdit();
         SaveFinderSettings();
 
-        if (csvFiles.Count == 0)
-        {
-            statusLabel.Text = L("保存対象のCSVがありません。", "No CSV files to save.");
-            return;
-        }
-
         try
         {
-            tagFinderCsvService.SaveFlags(
-                csvFiles,
-                resultRows.Select(row => new TagFinderSaveSelection
-                {
-                    File = row.File,
-                    RowIndex = row.RowIndex,
-                    Checked = row.Checked,
-                    WasChecked = IsRowChecked(row.File, row.RowIndex, FlagColumnName())
-                }),
-                FlagColumnName(),
-                OrderColumnName(),
-                hasHeaderRow);
+            if (!SaveFlagsToCsv())
+            {
+                return;
+            }
 
-            CsvSaved = true;
-            statusLabel.Text = L("全CSVの列構造を揃えて保存しました。", "Aligned the column structure across all CSV files and saved.");
             if ((int)printQuantityBox.Value > 1 && QueueTargets().Count > 0)
             {
-                CreateQueue();
+                CreateQueue(flagsAlreadySaved: true);
             }
 
             ResetPrintQuantity();
@@ -56,7 +40,7 @@ public sealed partial class TagFinderDialog
         searchTextBox.Focus();
     }
 
-    private void CreateQueue()
+    private void CreateQueue(bool flagsAlreadySaved = false)
     {
         CommitGridEdit();
         SaveFinderSettings();
@@ -76,6 +60,11 @@ public sealed partial class TagFinderDialog
 
         try
         {
+            if (!flagsAlreadySaved && !SaveFlagsToCsv())
+            {
+                return;
+            }
+
             var queueCsv = tagFinderCsvService.CreatePrintQueueCsv(
                 targets
                     .Select(row => new TagFinderQueueSource { File = row.File, RowIndex = row.RowIndex })
@@ -86,9 +75,7 @@ public sealed partial class TagFinderDialog
                 hasHeaderRow);
             QueueCsvPath = queueCsv.FilePath;
             AddOrReplaceQueueCsv(queueCsv);
-            statusLabel.Text = L(
-                $"追加分の印刷キューCSVを作成しました: {Path.GetFileName(QueueCsvPath)}",
-                $"Created additional print queue CSV: {Path.GetFileName(QueueCsvPath)}");
+            statusLabel.Text = TF("tagFinder.message.queueCreated", Path.GetFileName(QueueCsvPath));
             queueCreated(QueueCsvPath);
             ResetPrintQuantity();
         }
@@ -98,20 +85,39 @@ public sealed partial class TagFinderDialog
         }
     }
 
+    private bool SaveFlagsToCsv()
+    {
+        if (csvFiles.Count == 0)
+        {
+            statusLabel.Text = T("tagFinder.message.noCsvToSave");
+            return false;
+        }
+
+        tagFinderCsvService.SaveFlags(
+            csvFiles,
+            resultRows.Select(row => new TagFinderSaveSelection
+            {
+                File = row.File,
+                RowIndex = row.RowIndex,
+                Checked = row.Checked,
+                WasChecked = IsRowChecked(row.File, row.RowIndex, FlagColumnName())
+            }),
+            FlagColumnName(),
+            OrderColumnName(),
+            hasHeaderRow);
+
+        CsvSaved = true;
+        statusLabel.Text = T("tagFinder.message.flagsSaved");
+        return true;
+    }
+
     private List<TagFinderResultRow> QueueTargets()
     {
-        if (queueTargetFromDoubleClick is { Checked: true } target && resultRows.Contains(target))
-        {
-            return [target];
-        }
-
-        if (showingCheckedOnlyRows)
-        {
-            var selected = SelectedResultRow();
-            return selected is { Checked: true } ? [selected] : [];
-        }
-
-        return resultRows.Where(row => row.Checked).ToList();
+        return tagFinderWorkflowService.ResolveQueueTargets(
+            resultRows,
+            showingCheckedOnlyRows,
+            SelectedResultRow(),
+            queueTargetFromDoubleClick);
     }
 
     private TagFinderResultRow? SelectedResultRow()
@@ -156,13 +162,11 @@ public sealed partial class TagFinderDialog
 
         if (queueFiles.Count == 0)
         {
-            statusLabel.Text = L("削除対象のキューCSVはありません。", "No queue CSVs to delete.");
+            statusLabel.Text = T("tagFinder.message.noQueueCsvToDelete");
             return;
         }
 
-        var message = L(
-            $"キューCSV {queueFiles.Count} 件を削除しますか？\nファイルはゴミ箱へ移動します。",
-            $"Delete {queueFiles.Count} queue CSV file(s)?\nFiles will be moved to the Recycle Bin.");
+        var message = TF("tagFinder.confirm.deleteQueueCsvs", queueFiles.Count);
         if (MessageBox.Show(message, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
         {
             return;
@@ -177,9 +181,7 @@ public sealed partial class TagFinderDialog
 
             RemoveDeletedQueueCsvs(queueFiles);
 
-            statusLabel.Text = L(
-                $"キューCSV {queueFiles.Count} 件を削除しました。",
-                $"Deleted {queueFiles.Count} queue CSV file(s).");
+            statusLabel.Text = TF("tagFinder.message.deletedQueueCsvs", queueFiles.Count);
 
             foreach (var folder in queueFiles
                          .Select(Path.GetDirectoryName)
@@ -225,11 +227,9 @@ public sealed partial class TagFinderDialog
 
         var fileList = string.Join(Environment.NewLine, unusedQueueFiles.Take(10).Select(Path.GetFileName));
         var more = unusedQueueFiles.Count > 10
-            ? Environment.NewLine + L($"...ほか {unusedQueueFiles.Count - 10} 件", $"...and {unusedQueueFiles.Count - 10} more")
+            ? Environment.NewLine + TF("tagFinder.message.moreFiles", unusedQueueFiles.Count - 10)
             : "";
-        var message = L(
-            $"印刷対象になっているタグがないキューCSVが見つかりました。\n削除しますか？\n\n{fileList}{more}",
-            $"Queue CSV file(s) with no printable tags were found.\nDelete them?\n\n{fileList}{more}");
+        var message = TF("tagFinder.confirm.deleteUnusedQueueCsvs", fileList + more);
 
         if (MessageBox.Show(message, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
         {
@@ -266,18 +266,7 @@ public sealed partial class TagFinderDialog
 
     private IEnumerable<string> UnusedQueueCsvFiles()
     {
-        var flagColumnName = FlagColumnName();
-        foreach (var file in csvFiles)
-        {
-            if (!CsvFileUtility.IsPrintQueueCsv(file.FilePath)) continue;
-
-            var flagIndex = FindHeaderIndex(file, flagColumnName);
-            var hasPrintableRow = flagIndex >= 0 && file.Rows.Any(row => IsTrue(ValueAt(row, flagIndex)));
-            if (!hasPrintableRow)
-            {
-                yield return file.FilePath;
-            }
-        }
+        return tagFinderWorkflowService.FindUnusedQueueCsvFiles(csvFiles, FlagColumnName());
     }
 
     private void RemoveDeletedQueueCsvs(IEnumerable<string> deletedPaths)

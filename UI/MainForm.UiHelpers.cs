@@ -140,7 +140,7 @@ public sealed partial class MainForm : Form
     private static void ConfigurePreviewZoomButton(Button button)
     {
         button.AutoSize = false;
-        button.Size = new Size(72, 30);
+        button.Size = new Size(104, 30);
         button.Margin = new Padding(0, 0, 0, 4);
     }
 
@@ -405,6 +405,7 @@ public sealed partial class MainForm : Form
             "項目追加" => "main.button.addField",
             "CSVフィールド" => "main.section.csvFields",
             "CSVファイル選択" => "main.button.selectCsv",
+            "CSV選択/追加" => "main.button.selectCsv",
             "フォルダー選択" => "main.button.selectFolder",
             "CSV読み込み" => "main.section.csvImport",
             "前へ" => "main.button.previous",

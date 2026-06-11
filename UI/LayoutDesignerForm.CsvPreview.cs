@@ -28,7 +28,7 @@ public sealed partial class LayoutDesignerForm
             previewRowCombo.Items.Add(PreviewRowLabel(previewRows[i]));
         }
 
-        previewRowCombo.SelectedIndex = 0;
+        previewRowCombo.SelectedIndex = Math.Clamp(initialPreviewRowIndex, 0, previewRows.Count - 1);
         previewRowCombo.Enabled = previewRows.Count > 1;
         UpdatePreviewRowNavigationButtons();
     }

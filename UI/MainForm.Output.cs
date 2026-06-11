@@ -131,19 +131,22 @@ public sealed partial class MainForm
                 ColumnCount = 5,
                 RowCount = 1,
                 Margin = new Padding(0),
-                Padding = new Padding(0)
+                Padding = new Padding(0, 0, 10, 0)
             };
             rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
             rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
             rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
             rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             rightSort.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             printSortFieldCombo.Margin = new Padding(4, 3, 8, 3);
             printSortCombo.Margin = new Padding(4, 3, 0, 3);
-            printSortValueTypeCombo.Margin = new Padding(8, 3, 0, 3);
+            printSortValueTypeCombo.Margin = new Padding(8, 3, 4, 3);
             rightSort.Controls.Add(printSortFieldCombo, 1, 0);
-            rightSort.Controls.Add(BottomLabelText("main.label.printSort", alignRight: true, right: 8), 2, 0);
+            var printSortLabel = BottomLabelText("main.label.printSort", alignRight: true, right: 8);
+            printSortLabel.Margin = new Padding(0);
+            printSortLabel.AutoEllipsis = false;
+            rightSort.Controls.Add(printSortLabel, 2, 0);
             rightSort.Controls.Add(printSortCombo, 3, 0);
             rightSort.Controls.Add(printSortValueTypeCombo, 4, 0);
             row1.Controls.Add(rightSort, 1, 0);
@@ -158,7 +161,7 @@ public sealed partial class MainForm
                 Padding = new Padding(0)
             };
             row2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 710));
+            row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 740));
             row2.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var folderLeft = new TableLayoutPanel
@@ -187,8 +190,8 @@ public sealed partial class MainForm
                 Padding = new Padding(0)
             };
             actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
-            actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
-            actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 76));
+            actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 102));
+            actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
             actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 114));
             actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 114));
             actionsRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
@@ -196,10 +199,10 @@ public sealed partial class MainForm
             PrepareOutputButton(newSavePngButton, 106);
             PrepareOutputButton(newSavePdfButton, 106);
             PrepareOutputButton(newPrintDirectButton, 132);
-            PrepareOutputButton(newSelectOutputButton, 78);
-            PrepareOutputButton(newOpenOutputButton, 68);
+            PrepareOutputButton(newSelectOutputButton, 94);
+            PrepareOutputButton(newOpenOutputButton, 82);
             recentOutputCombo.Margin = new Padding(0, 15, 0, 0);
-            var recentOutputControl = OutputRowControl(recentOutputCombo, 165);
+            var recentOutputControl = OutputRowControl(recentOutputCombo, 160);
             recentOutputControl.Margin = new Padding(8, 15, 8, 0);
             actionsRight.Controls.Add(recentOutputControl, 0, 0);
             actionsRight.Controls.Add(newSelectOutputButton, 1, 0);
@@ -435,9 +438,14 @@ public sealed partial class MainForm
         }
     }
 
-    private OutputOptions Options(OutputFormatType format) => new()
+    private OutputOptions Options(OutputFormatType format)
     {
-        OutputFormat = format,
+        return outputOptionsFactory.Create(CurrentOutputSelectionState(), format);
+    }
+
+    private OutputSelectionState CurrentOutputSelectionState() => new()
+    {
+        OutputScope = CurrentOutputScope(),
         OutputFolder = ResolveOutputFolder(),
         ConfirmOverwrite = settings.ConfirmOverwrite,
         OutputDpi = SelectedOutputDpi(),
@@ -446,8 +454,7 @@ public sealed partial class MainForm
         PrintSortFieldId = SelectedPrintSortFieldId(),
         PrintSortValueType = CurrentPrintSortValueType(),
         PrintOffsetXmm = (double)printOffsetXBox.Value,
-        PrintOffsetYmm = (double)printOffsetYBox.Value,
-        OutputScope = CurrentOutputScope()
+        PrintOffsetYmm = (double)printOffsetYBox.Value
     };
 
     private string ResolveOutputFolder()

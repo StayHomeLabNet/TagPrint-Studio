@@ -1,30 +1,10 @@
 namespace TagPrintStudio.Models;
 
-public sealed class TagFinderMatch
+public class TagFinderResultRow
 {
-    public CsvFileItem File { get; init; } = null!;
-    public int RowIndex { get; init; }
-    public bool Checked { get; init; }
-}
-
-public sealed class TagFinderSaveSelection
-{
-    public CsvFileItem File { get; init; } = null!;
-    public int RowIndex { get; init; }
-    public bool Checked { get; init; }
-    public bool WasChecked { get; init; }
-}
-
-public sealed class TagFinderQueueSource
-{
-    public CsvFileItem File { get; init; } = null!;
-    public int RowIndex { get; init; }
-}
-
-public sealed class TagFinderQueueCsvResult
-{
-    public string FilePath { get; init; } = "";
-    public string EncodingName { get; init; } = "";
-    public string[] Header { get; init; } = [];
-    public List<string[]> Rows { get; init; } = [];
+    public required CsvFileItem File { get; init; }
+    public required int RowIndex { get; init; }
+    public bool Checked { get; set; }
+    public string FileName => File.FileName;
+    public int DisplayRowNumber => RowIndex + 1;
 }

@@ -1,6 +1,27 @@
-﻿# TagPrint Studio Release Notes
+# TagPrint Studio Release Notes
 
 ## English
+
+### v1.0.7
+
+#### Tag Finder
+
+- Unified Tag Finder labels, buttons, messages, and column headers with the shared localization resource system.
+- Cleaned up remaining garbled Japanese UI text and kept startup checks for older mojibake preset/layout files.
+- Improved the **Show True Only** button layout so Japanese text fits more reliably.
+- Removed unnecessary suffix text from the Tag Finder preview title.
+- Queue creation now saves parent CSV flags when needed so the original row remains the first normal copy.
+- Save-to-queue flow now avoids duplicate CSV flag saves.
+
+#### Queue CSV Files
+
+- Queue CSV file creation now avoids overwriting same-second files by adding suffixes such as `-2` and `-3` when needed.
+- Documented the queue CSV naming behavior in README and manuals.
+
+#### Settings and Documentation
+
+- Documented app data storage location management, including change, open, and reset operations for the app data root.
+- Updated README files, release notes, and English/Japanese manuals for v1.0.7.
 
 ### v1.0.6
 
@@ -165,6 +186,27 @@
 ---
 
 ## Japanese
+
+### v1.0.7
+
+#### タグファインダー
+
+- タグファインダーのラベル、ボタン、メッセージ、列見出しを共通ローカライズリソースへ統一しました。
+- 残っていた日本語UI文字列の文字化けを整理し、古い文字化けプリセット/レイアウトを起動時に検出する処理を維持しました。
+- **true のみ表示** ボタンの幅と文字サイズを調整し、日本語表示が収まりやすくなりました。
+- タグファインダーのプレビュー見出しから不要な付加表示を削除しました。
+- キュー作成時に必要に応じて親CSV側のフラグを保存し、親CSVの元行を通常の1枚目として扱えるようにしました。
+- 保存からキュー作成へ進む場合、CSVフラグ保存が重複しないようにしました。
+
+#### キューCSV
+
+- 同じ秒にキューCSVを作成した場合でも上書きしないよう、必要に応じて `-2`、`-3` などの連番を付けるようにしました。
+- キューCSVのファイル名仕様を README とマニュアルに追記しました。
+
+#### 設定とドキュメント
+
+- アプリデータ保存場所の変更、表示、既定へのリセットについてドキュメントに追記しました。
+- README、リリースノート、英日マニュアルを v1.0.7 向けに更新しました。
 
 ### v1.0.6
 

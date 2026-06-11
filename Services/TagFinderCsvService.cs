@@ -125,7 +125,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
             }
         }
 
-        var path = Path.Combine(sourceFolder, $"print_queue_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        var path = NextQueueCsvPath(sourceFolder);
         var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
         File.WriteAllText(path, content, CsvFileUtility.EncodingForCsv(firstFile.EncodingName));
 
@@ -222,6 +222,28 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         lines.AddRange(file.Rows.Select(ToCsvLine));
         var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
         File.WriteAllText(file.FilePath, content, CsvFileUtility.EncodingForCsv(file.EncodingName));
+    }
+
+    private static string NextQueueCsvPath(string sourceFolder)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var path = Path.Combine(sourceFolder, $"print_queue_{timestamp}.csv");
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        var suffix = 2;
+        while (true)
+        {
+            path = Path.Combine(sourceFolder, $"print_queue_{timestamp}-{suffix}.csv");
+            if (!File.Exists(path))
+            {
+                return path;
+            }
+
+            suffix++;
+        }
     }
 
     private static string[] EnsureRowWidth(string[] row, int width)

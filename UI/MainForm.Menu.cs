@@ -31,6 +31,12 @@ public sealed partial class MainForm : Form
         confirmPrintTargetsMenuItem = Item("main.menu.confirmPrintTargets", (_, _) => ToggleConfirmPrintTargets());
         confirmPrintTargetsMenuItem.CheckOnClick = true;
         largePrintWarningSettingsMenuItem = Item("main.menu.largePrintWarning", (_, _) => ConfigureLargePrintWarning());
+        appDataLocationMenuItem = new ToolStripMenuItem(AppDataLocationMenuText());
+        appDataLocationMenuItem.Click += (_, _) => ConfigureAppDataLocation();
+        openAppDataLocationMenuItem = new ToolStripMenuItem(OpenAppDataLocationMenuText());
+        openAppDataLocationMenuItem.Click += (_, _) => OpenAppDataLocation();
+        resetAppDataLocationMenuItem = new ToolStripMenuItem(ResetAppDataLocationMenuText());
+        resetAppDataLocationMenuItem.Click += (_, _) => ResetAppDataLocation();
         openSettingsLocationMenuItem = new ToolStripMenuItem(OpenSettingsLocationMenuText());
         openSettingsLocationMenuItem.Click += (_, _) => OpenSettingsLocation();
         openStartupCsvLocationMenuItem = new ToolStripMenuItem(OpenStartupCsvLocationMenuText());
@@ -48,6 +54,10 @@ public sealed partial class MainForm : Form
             new ToolStripSeparator(),
             confirmPrintTargetsMenuItem,
             largePrintWarningSettingsMenuItem,
+            new ToolStripSeparator(),
+            appDataLocationMenuItem,
+            openAppDataLocationMenuItem,
+            resetAppDataLocationMenuItem,
             new ToolStripSeparator(),
             settingsImportMenuItem,
             settingsBackupMenuItem,
@@ -152,6 +162,18 @@ public sealed partial class MainForm : Form
     private static string BackupCleanupMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
         ? "バックアップファイルを整理..."
         : "Clean Up Backup Files...";
+
+    private static string AppDataLocationMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "アプリデータ保存場所を変更する"
+        : "Change App Data Storage Location";
+
+    private static string OpenAppDataLocationMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "アプリデータ保存場所を開く"
+        : "Open App Data Location";
+
+    private static string ResetAppDataLocationMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "アプリデータ保存場所を既定に戻す"
+        : "Reset App Data Location";
 
     private static string OpenSettingsLocationMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
         ? "設定ファイルの場所を開く"

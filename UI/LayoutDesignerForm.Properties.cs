@@ -18,7 +18,7 @@ public sealed partial class LayoutDesignerForm
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
 
         paperSizeCombo = ComboBox(Enum.GetNames<PaperSizeType>());
-        unitCombo = ComboBox(Enum.GetNames<UnitType>());
+        unitCombo = ComboBox(UnitItems());
         paperWidthBox = Number(1, 5000, 0.5m, 210);
         paperHeightBox = Number(1, 5000, 0.5m, 297);
         tagWidthBox = Number(1, 1000, 0.5m, 50);
@@ -54,7 +54,7 @@ public sealed partial class LayoutDesignerForm
         fontSizeSourceCombo = ComboBox(FontSizeSourceItems());
         fontSizeFieldCombo = ComboBox(FieldIdItems());
         fontSizeFieldCombo.DropDownStyle = ComboBoxStyle.DropDown;
-        minFontSizeBox = Number(1, 300, 0.5m, 6);
+        minFontSizeBox = Number(1, 300, 0.5m, 2);
         maxFontSizeBox = Number(1, 300, 0.5m, 48);
         boldCheck = new CheckBox { Dock = DockStyle.Fill, Margin = new Padding(3, 5, 6, 3) };
         lockedCheck = new CheckBox { Dock = DockStyle.Fill, Margin = new Padding(3, 5, 6, 3) };
@@ -159,6 +159,8 @@ public sealed partial class LayoutDesignerForm
 
     private static object[] BarcodeTypeItems() => ["Code128", "EAN-13 / JAN-13", "QR Code"];
 
+    private static object[] UnitItems() => ["mm", "px", "inch"];
+
     private static object[] FontSizeSourceItems() =>
     [
         FontSizeSourceDisplayText(FontSizeSourceType.Fixed),
@@ -232,7 +234,7 @@ public sealed partial class LayoutDesignerForm
             imagePathBox.Text = "";
             fontSizeSourceCombo.SelectedItem = FontSizeSourceDisplayText(FontSizeSourceType.Fixed);
             fontSizeFieldCombo.Text = "";
-            minFontSizeBox.Value = Clamp(6, minFontSizeBox);
+            minFontSizeBox.Value = Clamp(2, minFontSizeBox);
             maxFontSizeBox.Value = Clamp(48, maxFontSizeBox);
             decimalStyleCombo.SelectedIndex = -1;
             decimalPlacesBox.Value = Clamp(-1, decimalPlacesBox);
@@ -263,7 +265,7 @@ public sealed partial class LayoutDesignerForm
         fontSizeBox.Value = Clamp(element.FontSize, fontSizeBox);
         fontSizeSourceCombo.SelectedItem = FontSizeSourceDisplayText(element.FontSizeSource);
         fontSizeFieldCombo.Text = FieldDisplayText(element.FontSizeFieldId);
-        minFontSizeBox.Value = Clamp(element.MinFontSize <= 0 ? 6 : element.MinFontSize, minFontSizeBox);
+        minFontSizeBox.Value = Clamp(element.MinFontSize <= 0 ? 2 : element.MinFontSize, minFontSizeBox);
         maxFontSizeBox.Value = Clamp(element.MaxFontSize <= 0 ? 48 : element.MaxFontSize, maxFontSizeBox);
         SetColorButton(textColorButton, element.TextColor);
         SetColorButton(backgroundColorButton, element.BackgroundColor);
@@ -288,7 +290,12 @@ public sealed partial class LayoutDesignerForm
     private void LoadLayoutSettingsIntoEditor()
     {
         paperSizeCombo.SelectedItem = currentLayout.Paper.PaperSize.ToString();
-        unitCombo.SelectedItem = currentLayout.Paper.Unit.ToString();
+        unitCombo.SelectedItem = currentLayout.Paper.Unit switch
+        {
+            UnitType.Px => "px",
+            UnitType.Inch => "inch",
+            _ => "mm"
+        };
         paperWidthBox.Value = Clamp(currentLayout.Paper.CustomWidth ?? 210, paperWidthBox);
         paperHeightBox.Value = Clamp(currentLayout.Paper.CustomHeight ?? 297, paperHeightBox);
         tagWidthBox.Value = Clamp(currentLayout.Tag.Width, tagWidthBox);
@@ -313,7 +320,8 @@ public sealed partial class LayoutDesignerForm
         {
             currentLayout.Paper.PaperSize = paperSize;
         }
-        if (Enum.TryParse<UnitType>(Convert.ToString(unitCombo.SelectedItem), out var unit))
+        var unitText = Convert.ToString(unitCombo.SelectedItem) ?? unitCombo.Text;
+        if (Enum.TryParse<UnitType>(unitText, ignoreCase: true, out var unit))
         {
             currentLayout.Paper.Unit = unit;
         }

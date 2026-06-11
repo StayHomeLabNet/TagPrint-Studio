@@ -57,14 +57,19 @@ public sealed partial class MainForm : Form
 
     private void OpenLayoutDesigner()
     {
-        OpenLayoutDesigner(null);
+        OpenLayoutDesigner(null, 0);
     }
 
     private void OpenLayoutDesigner(List<CsvPreviewRowContext>? previewRows)
     {
+        OpenLayoutDesigner(previewRows, 0);
+    }
+
+    private void OpenLayoutDesigner(List<CsvPreviewRowContext>? previewRows, int initialPreviewRowIndex)
+    {
         var initialLayoutPath = layoutCombo.SelectedItem is FileComboItem selectedLayout ? selectedLayout.Path : "";
         currentPreset.Fields = fieldRows.ToList();
-        using var designer = new LayoutDesignerForm(fieldRows.ToList(), initialLayoutPath, previewRows ?? DesignerPreviewRows());
+        using var designer = new LayoutDesignerForm(fieldRows.ToList(), initialLayoutPath, previewRows ?? DesignerPreviewRows(), paths, initialPreviewRowIndex);
         designer.ShowDialog(this);
         if (designer.CsvSaved)
         {

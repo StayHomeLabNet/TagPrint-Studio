@@ -6,6 +6,8 @@ namespace TagPrintStudio.UI;
 internal sealed class PrintTargetConfirmationDialog : Form
 {
     private readonly List<PrintTargetOrderRow> orderedRowsList;
+    private readonly AppSettings settings;
+    private readonly Action saveSettings;
     private readonly ComboBox searchColumnCombo = new();
     private readonly TextBox searchTextBox = new();
     private readonly Label searchStatusLabel = new();
@@ -15,9 +17,13 @@ internal sealed class PrintTargetConfirmationDialog : Form
         string title,
         string summary,
         IEnumerable<PrintTargetCsvSummaryRow> csvSummaries,
-        IEnumerable<PrintTargetOrderRow> orderedRows)
+        IEnumerable<PrintTargetOrderRow> orderedRows,
+        AppSettings settings,
+        Action saveSettings)
     {
         orderedRowsList = orderedRows.ToList();
+        this.settings = settings;
+        this.saveSettings = saveSettings;
 
         Text = title;
         Width = 860;
@@ -122,13 +128,18 @@ internal sealed class PrintTargetConfirmationDialog : Form
         searchColumnCombo.Dock = DockStyle.Fill;
         searchColumnCombo.Margin = new Padding(4, 1, 10, 1);
         searchColumnCombo.Items.AddRange([
-            new SearchColumnItem(LocalizationService.T("printTarget.column.order"), row => row.Order.ToString()),
-            new SearchColumnItem(LocalizationService.T("printTarget.column.csv"), row => row.CsvName),
-            new SearchColumnItem(LocalizationService.T("printTarget.column.row"), row => row.RowNumber.ToString()),
-            new SearchColumnItem(LocalizationService.T("printTarget.column.sortValue"), row => row.SortValue),
-            new SearchColumnItem(LocalizationService.T("printTarget.column.keyValue"), row => row.KeyValue)
+            new SearchColumnItem("order", LocalizationService.T("printTarget.column.order"), row => row.Order.ToString()),
+            new SearchColumnItem("csv", LocalizationService.T("printTarget.column.csv"), row => row.CsvName),
+            new SearchColumnItem("row", LocalizationService.T("printTarget.column.row"), row => row.RowNumber.ToString()),
+            new SearchColumnItem("sortValue", LocalizationService.T("printTarget.column.sortValue"), row => row.SortValue),
+            new SearchColumnItem("keyValue", LocalizationService.T("printTarget.column.keyValue"), row => row.KeyValue)
         ]);
-        searchColumnCombo.SelectedIndex = Math.Min(3, searchColumnCombo.Items.Count - 1);
+        searchColumnCombo.SelectedItem =
+            searchColumnCombo.Items.Cast<SearchColumnItem>()
+                .FirstOrDefault(item => string.Equals(item.Id, settings.LastPrintTargetSearchColumnId, StringComparison.Ordinal))
+            ?? searchColumnCombo.Items.Cast<SearchColumnItem>().FirstOrDefault(item => item.Id == "sortValue")
+            ?? searchColumnCombo.Items.Cast<SearchColumnItem>().FirstOrDefault();
+        searchColumnCombo.SelectedIndexChanged += (_, _) => SaveSelectedSearchColumn();
 
         searchTextBox.Dock = DockStyle.Fill;
         searchTextBox.Margin = new Padding(4, 1, 10, 1);
@@ -157,6 +168,13 @@ internal sealed class PrintTargetConfirmationDialog : Form
         panel.Controls.Add(searchButton, 4, 0);
         panel.Controls.Add(searchStatusLabel, 5, 0);
         return panel;
+    }
+
+    private void SaveSelectedSearchColumn()
+    {
+        if (searchColumnCombo.SelectedItem is not SearchColumnItem column) return;
+        settings.LastPrintTargetSearchColumnId = column.Id;
+        saveSettings();
     }
 
     private void FindAndSelectOrderRow()
@@ -252,8 +270,9 @@ internal sealed class PrintTargetConfirmationDialog : Form
     }
 }
 
-internal sealed class SearchColumnItem(string displayName, Func<PrintTargetOrderRow, string> value)
+internal sealed class SearchColumnItem(string id, string displayName, Func<PrintTargetOrderRow, string> value)
 {
+    public string Id { get; } = id;
     public string DisplayName { get; } = displayName;
     public Func<PrintTargetOrderRow, string> Value { get; } = value;
     public override string ToString() => DisplayName;

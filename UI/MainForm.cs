@@ -25,7 +25,8 @@ public sealed partial class MainForm : Form
     private const int MinPagePreviewZoomPercent = -40;
     private const int MaxPagePreviewZoomPercent = 200;
 
-    private readonly AppPaths paths = new();
+    private readonly IAppStorageLocationService appStorageLocationService;
+    private readonly AppPaths paths;
     private readonly BootstrapService bootstrap;
     private readonly IPresetService presetService;
     private readonly ILayoutService layoutService;
@@ -33,6 +34,7 @@ public sealed partial class MainForm : Form
     private readonly IUnitConversionService units = new UnitConversionService();
     private readonly IPreviewRenderService renderer;
     private readonly IOutputService outputService;
+    private readonly IOutputOptionsFactory outputOptionsFactory;
     private readonly IPreflightCheckService preflightCheckService = new PreflightCheckService();
     private readonly IPrintTargetSummaryService printTargetSummaryService = new PrintTargetSummaryService();
     private readonly ISettingsArchiveService settingsArchiveService;
@@ -94,6 +96,9 @@ public sealed partial class MainForm : Form
     private ToolStripMenuItem backupCleanupMenuItem = null!;
     private ToolStripMenuItem confirmPrintTargetsMenuItem = null!;
     private ToolStripMenuItem largePrintWarningSettingsMenuItem = null!;
+    private ToolStripMenuItem appDataLocationMenuItem = null!;
+    private ToolStripMenuItem openAppDataLocationMenuItem = null!;
+    private ToolStripMenuItem resetAppDataLocationMenuItem = null!;
     private ToolStripMenuItem openSettingsLocationMenuItem = null!;
     private ToolStripMenuItem openStartupCsvLocationMenuItem = null!;
     private ToolStripMenuItem openStartupFolderMenuItem = null!;
@@ -136,11 +141,14 @@ public sealed partial class MainForm : Form
 
     public MainForm()
     {
+        appStorageLocationService = new AppStorageLocationService();
+        paths = appStorageLocationService.ResolvePaths();
         bootstrap = new BootstrapService(paths);
         presetService = new PresetService(paths);
         layoutService = new LayoutService(paths);
         renderer = new PreviewRenderService(units);
         outputService = new OutputService(renderer, units);
+        outputOptionsFactory = new OutputOptionsFactory();
         settingsArchiveService = new SettingsArchiveService(paths);
         BuildUi();
         fieldRows.ListChanged += (_, _) => RefreshPrintSortFieldCombo();
@@ -317,7 +325,7 @@ public sealed partial class MainForm : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Visible = true
         };
-        previewZoomInButton = Button("layout.button.zoomIn", (_, _) => AdjustPagePreviewZoom(PagePreviewZoomStepPercent), primary: true);
+        previewZoomInButton = Button("layout.button.zoomIn", (_, _) => AdjustPagePreviewZoom(PagePreviewZoomStepPercent));
         previewZoomResetButton = Button("layout.button.zoomReset", (_, _) => ResetPagePreviewZoom());
         previewZoomOutButton = Button("layout.button.zoomOut", (_, _) => AdjustPagePreviewZoom(-PagePreviewZoomStepPercent));
         ConfigurePreviewZoomButton(previewZoomInButton);

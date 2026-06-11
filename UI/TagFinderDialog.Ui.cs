@@ -1,5 +1,7 @@
-using TagPrintStudio.Enums;
+﻿using TagPrintStudio.Enums;
 using TagPrintStudio.Services;
+
+using TagPrintStudio.Models;
 
 namespace TagPrintStudio.UI;
 
@@ -29,20 +31,21 @@ public sealed partial class TagFinderDialog
             BackColor = SurfaceColor,
             Padding = new Padding(14, 10, 14, 8)
         };
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126));
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
-        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
+        top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126));
         top.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         top.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         top.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.Controls.Add(top, 0, 0);
 
-        const int fieldInputWidth = 220;
-        searchFieldCombo = Combo(fieldInputWidth);
+        const int leftInputWidth = 168;
+        const int rightInputWidth = 208;
+        searchFieldCombo = Combo(leftInputWidth);
         searchTextBox = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(4, 3, 12, 3) };
         searchTextBox.KeyDown += (_, e) =>
         {
@@ -50,8 +53,8 @@ public sealed partial class TagFinderDialog
             e.SuppressKeyPress = true;
             Search();
         };
-        flagColumnBox = FixedTextBox(fieldInputWidth);
-        orderColumnBox = FixedTextBox(fieldInputWidth);
+        flagColumnBox = FixedTextBox(leftInputWidth);
+        orderColumnBox = FixedTextBox(rightInputWidth);
         printQuantityBox = new NumericUpDown
         {
             Minimum = 1,
@@ -72,7 +75,7 @@ public sealed partial class TagFinderDialog
         };
         savedValuePanel.Controls.Add(new Label
         {
-            Text = L("保存値", "Saved Value"),
+            Text = T("tagFinder.label.savedValue"),
             AutoSize = false,
             Width = 64,
             Height = 32,
@@ -92,7 +95,7 @@ public sealed partial class TagFinderDialog
         });
         autoCheckAfterSearchCheck = new CheckBox
         {
-            Text = L("検索後に自動的に対象にチェックを入れて保存して次へ", "Auto-check after search, save, and go next"),
+            Text = T("tagFinder.hint.autoCheckAfterSearch"),
             AutoSize = false,
             Width = 470,
             Height = 32,
@@ -105,7 +108,7 @@ public sealed partial class TagFinderDialog
         savedValuePanel.Controls.Add(autoCheckAfterSearchCheck);
         tagPreviewVisibleCheck = new CheckBox
         {
-            Text = L("プレビュー", "Preview"),
+            Text = T("tagFinder.label.preview"),
             Checked = true,
             Dock = DockStyle.Fill,
             AutoSize = false,
@@ -121,56 +124,46 @@ public sealed partial class TagFinderDialog
             ApplyTagPreviewVisibility();
         };
 
-        top.Controls.Add(LabelText(L("検索項目", "Search Field")), 0, 0);
+        top.Controls.Add(LabelText(T("tagFinder.label.searchField")), 0, 0);
         top.Controls.Add(searchFieldCombo, 1, 0);
-        top.Controls.Add(LabelText(L("検索値", "Search Value")), 2, 0);
+        top.Controls.Add(LabelText(T("tagFinder.label.searchValue")), 2, 0);
         top.SetColumnSpan(searchTextBox, 3);
         top.Controls.Add(searchTextBox, 3, 0);
-        top.Controls.Add(Button(L("検索", "Search"), (_, _) => Search(), primary: true), 6, 0);
+        top.Controls.Add(Button(T("tagFinder.button.search"), (_, _) => Search(), primary: true), 6, 0);
 
-        top.Controls.Add(LabelText(L("保存列", "Flag Column")), 0, 1);
+        top.Controls.Add(LabelText(T("tagFinder.label.printTargetColumn")), 0, 1);
         top.Controls.Add(flagColumnBox, 1, 1);
         top.Controls.Add(savedValuePanel, 2, 1);
         top.SetColumnSpan(savedValuePanel, 4);
-        top.Controls.Add(Button(L("trueのみ表示", "Show True Only"), (_, _) => ShowCheckedOnly(), width: 120), 6, 1);
+        var showTrueOnlyButton = Button(T("tagFinder.button.showTrueOnly"), (_, _) => ShowCheckedOnly(), width: 118, fontSize: 7.5f);
+        showTrueOnlyButton.Margin = new Padding(2, 0, 2, 0);
+        top.Controls.Add(showTrueOnlyButton, 6, 1);
 
-        top.Controls.Add(LabelText(L("印刷枚数", "Print Qty")), 0, 2);
-        top.Controls.Add(printQuantityBox, 1, 2);
-        top.Controls.Add(LabelText(L("順番列", "Order Column")), 2, 2);
-        top.Controls.Add(orderColumnBox, 3, 2);
-        top.Controls.Add(new Label
+        top.Controls.Add(LabelText(T("tagFinder.label.printQuantity")), 0, 2);
+        var printQuantityPanel = new FlowLayoutPanel
         {
-            Text = L("2以上のときは印刷キューCSVを作成します。1の場合は通常保存です。", "2 or more creates a print queue CSV. 1 uses normal save."),
             Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        printQuantityBox.Margin = new Padding(4, 3, 6, 3);
+        printQuantityPanel.Controls.Add(printQuantityBox);
+        var queueHintLabel = new Label
+        {
+            Text = T("tagFinder.hint.queueQuantity"),
+            AutoSize = true,
+            Height = 30,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Color.FromArgb(75, 85, 99),
-            Margin = new Padding(4, 0, 4, 0)
-        }, 4, 2);
-        top.SetColumnSpan(top.GetControlFromPosition(4, 2)!, 2);
-        if (top.GetControlFromPosition(0, 2) is Label printQtyLabel)
-        {
-            printQtyLabel.Text = L("印刷枚数", "Print Qty");
-        }
-
-        var orderLabel = top.GetControlFromPosition(2, 2);
-        if (orderLabel is not null)
-        {
-            top.Controls.Remove(orderLabel);
-        }
-
-        var queueHint = top.GetControlFromPosition(4, 2);
-        if (queueHint is Label queueHintLabel)
-        {
-            queueHintLabel.Text = L("2以上のときは印刷キューCSVを作成します", "2 or more creates a print queue CSV.");
-            top.SetColumnSpan(queueHintLabel, 2);
-            top.Controls.Remove(queueHintLabel);
-            top.Controls.Add(queueHintLabel, 2, 2);
-            queueHintLabel.Text = L("印刷枚数が2以上のときは印刷キューCSVを作成します", "When print quantity is 2 or more, a print queue CSV is created.");
-            queueHintLabel.Margin = new Padding(-46, 0, 4, 0);
-        }
-
-        top.Controls.Remove(orderColumnBox);
-        top.Controls.Add(LabelText(L("順番列", "Order Column")), 4, 2);
+            Margin = new Padding(0, 6, 4, 0)
+        };
+        printQuantityPanel.Controls.Add(queueHintLabel);
+        top.Controls.Add(printQuantityPanel, 1, 2);
+        top.SetColumnSpan(printQuantityPanel, 3);
+        top.Controls.Add(LabelText(T("tagFinder.label.orderColumnName")), 4, 2);
         top.Controls.Add(orderColumnBox, 5, 2);
         top.Controls.Add(tagPreviewVisibleCheck, 6, 2);
 
@@ -205,7 +198,7 @@ public sealed partial class TagFinderDialog
             FalseValue = false
         });
         resultsGrid.Columns.Add(TextColumn(nameof(TagFinderResultRow.FileName), "CSV", 160));
-        resultsGrid.Columns.Add(TextColumn(nameof(TagFinderResultRow.DisplayRowNumber), L("行", "Row"), 60));
+        resultsGrid.Columns.Add(TextColumn(nameof(TagFinderResultRow.DisplayRowNumber), T("common.row"), 60));
         foreach (var field in fields.Take(10))
         {
             resultsGrid.Columns.Add(TextColumn($"Field_{field.FieldId}", field.DisplayName, 150));
@@ -242,7 +235,7 @@ public sealed partial class TagFinderDialog
         previewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         tagPreviewLabel = new Label
         {
-            Text = L("タグプレビュー", "Tag Preview"),
+            Text = T("tagFinder.label.tagPreview"),
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = TextColor,
@@ -255,7 +248,7 @@ public sealed partial class TagFinderDialog
             BorderStyle = BorderStyle.FixedSingle,
             SizeMode = PictureBoxSizeMode.Zoom
         };
-        var openDesignerButton = Button(L("レイアウトデザイナーで開く", "Open in Layout Designer"), (_, _) => OpenCurrentPreviewInLayoutDesigner(), primary: true, width: 236);
+        var openDesignerButton = Button(T("tagFinder.button.openInLayoutDesigner"), (_, _) => OpenCurrentPreviewSetInLayoutDesigner(), primary: true, width: 236);
         openDesignerButton.Dock = DockStyle.Fill;
         openDesignerButton.Margin = new Padding(0, 8, 0, 0);
         previewPanel.Controls.Add(tagPreviewLabel, 0, 0);
@@ -282,12 +275,12 @@ public sealed partial class TagFinderDialog
             BackColor = SurfaceColor,
             Padding = new Padding(0, 9, 12, 8)
         };
-        bottom.Controls.Add(Button(L("閉じる", "Close"), (_, _) => CloseWithUnusedQueueCsvCleanup(), width: 100));
-        bottom.Controls.Add(Button(L("キュー作成して次へ", "Queue && Next"), (_, _) => CreateQueueAndNext(), primary: true, width: 150));
-        bottom.Controls.Add(Button(L("キュー作成", "Create Queue"), (_, _) => CreateQueue(), primary: true, width: 118));
-        bottom.Controls.Add(Button(L("保存して次へ", "Save && Next"), (_, _) => SaveAndNext(), primary: true, width: 132));
-        bottom.Controls.Add(Button(L("保存", "Save"), (_, _) => Save(), primary: true, width: 100));
-        bottom.Controls.Add(Button(L("キューCSVをすべて削除", "Delete All Queue CSVs"), (_, _) => DeleteAllQueueCsvs(), width: 220));
+        bottom.Controls.Add(Button(T("tagFinder.button.close"), (_, _) => CloseWithUnusedQueueCsvCleanup(), width: 100));
+        bottom.Controls.Add(Button(T("tagFinder.button.queueAndNext"), (_, _) => CreateQueueAndNext(), primary: true, width: 150));
+        bottom.Controls.Add(Button(T("tagFinder.button.createQueue"), (_, _) => CreateQueue(), primary: true, width: 118));
+        bottom.Controls.Add(Button(T("tagFinder.button.saveAndNext"), (_, _) => SaveAndNext(), primary: true, width: 132));
+        bottom.Controls.Add(Button(T("tagFinder.button.save"), (_, _) => Save(), primary: true, width: 100));
+        bottom.Controls.Add(Button(T("tagFinder.button.deleteAllQueueCsvs"), (_, _) => DeleteAllQueueCsvs(), width: 220));
         root.Controls.Add(bottom, 0, 3);
     }
 
@@ -324,8 +317,9 @@ public sealed partial class TagFinderDialog
         Margin = new Padding(4, 3, 12, 3)
     };
 
-    private static Button Button(string text, EventHandler click, bool primary = false, int width = 92)
+    private static Button Button(string text, EventHandler click, bool primary = false, int width = 92, float? fontSize = null)
     {
+        var baseFont = SystemFonts.MessageBoxFont ?? Control.DefaultFont;
         var button = new Button
         {
             Text = text,
@@ -334,13 +328,14 @@ public sealed partial class TagFinderDialog
             FlatStyle = FlatStyle.Flat,
             Margin = new Padding(4, 0, 4, 0),
             BackColor = primary ? AccentColor : SurfaceColor,
-            ForeColor = primary ? Color.White : Color.FromArgb(17, 24, 39)
+            ForeColor = primary ? Color.White : Color.FromArgb(17, 24, 39),
+            Font = fontSize.HasValue
+                ? new Font(baseFont.FontFamily, fontSize.Value, FontStyle.Regular)
+                : baseFont
         };
         button.FlatAppearance.BorderColor = primary ? AccentColor : Color.FromArgb(203, 213, 225);
         button.Click += click;
         return button;
     }
 
-    private static string L(string japanese, string english) =>
-        LocalizationService.CurrentLanguage == AppLanguage.Japanese ? japanese : english;
 }

@@ -29,14 +29,17 @@ public sealed partial class LayoutDesignerForm : Form
     private enum ArrangeAction { AlignLeft, AlignCenter, AlignRight, AlignMiddle, DistributeHorizontal, DistributeVertical }
     private enum DesignerPreviewMode { SingleTag, Page }
 
-    private readonly AppPaths paths = new();
+    private readonly AppPaths paths;
     private readonly ILayoutService layoutService;
+    private readonly ILayoutCatalogService layoutCatalogService;
+    private readonly ILayoutFieldSyncService layoutFieldSyncService;
     private readonly IPreviewRenderService renderer;
     private readonly BindingList<LayoutElement> elementRows = [];
     private readonly List<FieldDefinition> fieldDefinitions;
     private readonly string initialLayoutPath;
     private readonly List<CsvPreviewRowContext> previewRows;
     private readonly Dictionary<string, string> previewData;
+    private readonly int initialPreviewRowIndex;
     private readonly Stack<List<LayoutElement>> undoStack = new();
     private readonly Stack<List<LayoutElement>> redoStack = new();
 
@@ -142,32 +145,36 @@ public sealed partial class LayoutDesignerForm : Form
         };
     }
 
-    public LayoutDesignerForm() : this([], "", (List<CsvPreviewRowContext>?)null)
+    public LayoutDesignerForm() : this([], "", (List<CsvPreviewRowContext>?)null, null, 0)
     {
     }
 
-    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields) : this(fields, "", (List<CsvPreviewRowContext>?)null)
+    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields) : this(fields, "", (List<CsvPreviewRowContext>?)null, null, 0)
     {
     }
 
-    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields, string initialLayoutPath) : this(fields, initialLayoutPath, (List<CsvPreviewRowContext>?)null)
+    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields, string initialLayoutPath) : this(fields, initialLayoutPath, (List<CsvPreviewRowContext>?)null, null, 0)
     {
     }
 
     public LayoutDesignerForm(IEnumerable<FieldDefinition> fields, string initialLayoutPath, Dictionary<string, string>? previewData)
-        : this(fields, initialLayoutPath, previewData is { Count: > 0 } ? [new CsvPreviewRowContext { Data = previewData.ToDictionary() }] : null)
+        : this(fields, initialLayoutPath, previewData is { Count: > 0 } ? [new CsvPreviewRowContext { Data = previewData.ToDictionary() }] : null, null, 0)
     {
     }
 
-    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields, string initialLayoutPath, List<CsvPreviewRowContext>? previewRows)
+    public LayoutDesignerForm(IEnumerable<FieldDefinition> fields, string initialLayoutPath, List<CsvPreviewRowContext>? previewRows, AppPaths? appPaths = null, int initialPreviewRowIndex = 0)
     {
+        paths = appPaths ?? new AppStorageLocationService().ResolvePaths();
         fieldDefinitions = fields.Where(f => f.Enabled).OrderBy(f => f.DisplayOrder).ToList();
         this.initialLayoutPath = initialLayoutPath;
         this.previewRows = previewRows?.Where(row => row.Data.Count > 0).ToList() ?? [];
+        this.initialPreviewRowIndex = Math.Max(0, initialPreviewRowIndex);
         previewData = this.previewRows.Count > 0
             ? this.previewRows[0].Data.ToDictionary()
             : DefaultPreviewData(fieldDefinitions);
         layoutService = new LayoutService(paths);
+        layoutCatalogService = new LayoutCatalogService(paths);
+        layoutFieldSyncService = new LayoutFieldSyncService();
         renderer = new PreviewRenderService(new UnitConversionService());
         BuildUi();
         AppIcon.Apply(this);
@@ -344,7 +351,7 @@ public sealed partial class LayoutDesignerForm : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink
         };
-        var zoomInButton = Button("layout.button.zoomIn", (_, _) => AdjustCanvasAreaZoom(CanvasAreaZoomStepPercent), primary: true);
+        var zoomInButton = Button("layout.button.zoomIn", (_, _) => AdjustCanvasAreaZoom(CanvasAreaZoomStepPercent));
         var zoomResetButton = Button("layout.button.zoomReset", (_, _) => ResetCanvasAreaZoom());
         var zoomOutButton = Button("layout.button.zoomOut", (_, _) => AdjustCanvasAreaZoom(-CanvasAreaZoomStepPercent));
         ConfigureCanvasZoomButton(zoomInButton);

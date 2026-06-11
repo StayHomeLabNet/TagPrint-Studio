@@ -290,4 +290,5 @@ public sealed partial class ServiceTests
         var rewrittenSecond = File.ReadAllText(file2Path, Encoding.UTF8);
         Assert.Contains("A100,2026-04-25,From first", rewrittenSecond);
         Assert.DoesNotContain("A100,2026-04-20,From first", rewrittenSecond);
+    }
 }

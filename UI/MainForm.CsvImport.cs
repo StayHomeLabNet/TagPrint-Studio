@@ -1,4 +1,4 @@
-using TagPrintStudio.Enums;
+﻿using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
 using Microsoft.VisualBasic.FileIO;
@@ -22,8 +22,8 @@ public sealed partial class MainForm
         };
         recentCsvCombo.SelectedIndexChanged += (_, _) => OpenRecentCsvSelection();
 
-        var csvToolHeight = recentCsvCombo.PreferredHeight;
-        var selectCsvButton = Button("CSV選択/追加", (_, _) => SelectCsvFiles(), primary: true);
+        const int csvToolHeight = 30;
+        var selectCsvButton = Button("main.button.selectCsv", (_, _) => SelectCsvFiles(), primary: true);
         var selectFolderButton = Button("フォルダー選択", (_, _) => SelectCsvFolder());
         duplicateCleanupButton = Button("重複整理", (_, _) => OpenDuplicateCleanup());
         tagFinderButton = Button("タグ検索", (_, _) => OpenTagFinder());
@@ -201,7 +201,7 @@ public sealed partial class MainForm
         dialog.ShowDialog(this);
         if (dialog.LayoutDesignerPreviewRows is { Count: > 0 } previewRows)
         {
-            OpenLayoutDesigner(previewRows);
+            OpenLayoutDesigner(previewRows, dialog.LayoutDesignerInitialPreviewIndex);
         }
 
         if (dialog.CsvSaved)
