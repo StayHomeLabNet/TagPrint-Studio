@@ -10,6 +10,11 @@ public interface ISettingsArchiveService
 
 public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveService
 {
+    private const int MaxBackupEntryCount = 5000;
+    private const long MaxBackupTotalUncompressedBytes = 100L * 1024 * 1024;
+    private const long MaxBackupSingleFileBytes = 20L * 1024 * 1024;
+    private const int MaxBackupEntryNameLength = 260;
+
     public void CreateBackup(string zipPath)
     {
         paths.EnsureDirectories();
@@ -96,6 +101,8 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
     {
         var allowedRootSet = new HashSet<string>(allowedRoots, StringComparer.OrdinalIgnoreCase);
         var extractedFileCount = 0;
+        var validatedEntryCount = 0;
+        long totalUncompressedBytes = 0;
 
         using var archive = ZipFile.OpenRead(zipPath);
         foreach (var entry in archive.Entries)
@@ -114,6 +121,17 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
                 continue;
             }
 
+            if (normalized.Length > MaxBackupEntryNameLength)
+            {
+                throw new InvalidOperationException("The ZIP contains a path that is too long.");
+            }
+
+            validatedEntryCount++;
+            if (validatedEntryCount > MaxBackupEntryCount)
+            {
+                throw new InvalidOperationException("The ZIP contains too many files.");
+            }
+
             var destinationPath = Path.GetFullPath(Path.Combine(extractRoot, root, relativePath));
             var allowedRoot = Path.GetFullPath(Path.Combine(extractRoot, root)) + Path.DirectorySeparatorChar;
             if (!destinationPath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
@@ -124,18 +142,29 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             if (IsDirectoryEntry(entry))
             {
                 Directory.CreateDirectory(destinationPath);
+                continue;
             }
-            else
-            {
-                var destinationDir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrWhiteSpace(destinationDir))
-                {
-                    Directory.CreateDirectory(destinationDir);
-                }
 
-                entry.ExtractToFile(destinationPath, overwrite: true);
-                extractedFileCount++;
+            if (entry.Length > MaxBackupSingleFileBytes)
+            {
+                throw new InvalidOperationException("The ZIP contains a file that is too large.");
             }
+
+            totalUncompressedBytes += entry.Length;
+            if (totalUncompressedBytes > MaxBackupTotalUncompressedBytes)
+            {
+                throw new InvalidOperationException("The ZIP is too large to import.");
+            }
+
+            extractedFileCount++;
+
+            var destinationDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDir))
+            {
+                Directory.CreateDirectory(destinationDir);
+            }
+
+            entry.ExtractToFile(destinationPath, overwrite: true);
         }
 
         if (extractedFileCount == 0 || !allowedRootSet.Any(root => Directory.Exists(Path.Combine(extractRoot, root))))

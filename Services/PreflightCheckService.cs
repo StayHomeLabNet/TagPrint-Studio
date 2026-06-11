@@ -1,3 +1,4 @@
+using System.Drawing;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 
@@ -10,6 +11,11 @@ public interface IPreflightCheckService
 
 public sealed class PreflightCheckService : IPreflightCheckService
 {
+    private const long MaxImageFileBytes = 20L * 1024 * 1024;
+    private const int MaxImageWidthPixels = 12000;
+    private const int MaxImageHeightPixels = 12000;
+    private const long MaxImageTotalPixels = 100_000_000L;
+
     private const double RecommendedCode128BarcodeWidthMm = 30.0;
     private const double RecommendedCode128BarcodeHeightMm = 12.0;
     private const double RecommendedCode128BarcodeHeightWithTextMm = 15.0;
@@ -71,14 +77,56 @@ public sealed class PreflightCheckService : IPreflightCheckService
 
     private static IEnumerable<string> CheckImages(LayoutFile layout)
     {
-        foreach (var element in layout.Elements.Where(element => element.ElementType == Enums.LayoutElementType.Image))
+        foreach (var element in layout.Elements.Where(element => element.ElementType == LayoutElementType.Image))
         {
             if (string.IsNullOrWhiteSpace(element.ImagePath)) continue;
+
+            var label = ElementLabel(element);
             var resolved = ResolveImagePath(layout.FilePath, element.ImagePath);
             if (!File.Exists(resolved))
             {
-                var label = string.IsNullOrWhiteSpace(element.Name) ? element.ElementId : element.Name;
                 yield return LocalizationService.T("preflight.issue.imageMissing", label, element.ImagePath);
+                continue;
+            }
+
+            var fileInfo = new FileInfo(resolved);
+            if (fileInfo.Length > MaxImageFileBytes)
+            {
+                yield return LocalizationService.T("preflight.issue.imageTooLarge", label, element.ImagePath);
+                continue;
+            }
+
+            Image? image = null;
+            var imageLoadFailed = false;
+            try
+            {
+                image = Image.FromFile(resolved);
+            }
+            catch
+            {
+                imageLoadFailed = true;
+            }
+
+            if (imageLoadFailed || image is null)
+            {
+                yield return LocalizationService.T("preflight.issue.imageInvalid", label, element.ImagePath);
+                continue;
+            }
+
+            using (image)
+            {
+                var totalPixels = (long)image.Width * image.Height;
+                if (image.Width > MaxImageWidthPixels ||
+                    image.Height > MaxImageHeightPixels ||
+                    totalPixels > MaxImageTotalPixels)
+                {
+                    yield return LocalizationService.T(
+                        "preflight.issue.imageDimensionsTooLarge",
+                        label,
+                        element.ImagePath,
+                        image.Width,
+                        image.Height);
+                }
             }
         }
     }

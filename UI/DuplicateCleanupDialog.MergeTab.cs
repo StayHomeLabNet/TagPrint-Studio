@@ -282,7 +282,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(CsvFileUtility.BuildUserFriendlySaveErrorMessage(ex), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

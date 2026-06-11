@@ -377,6 +377,13 @@ public sealed partial class MainForm : Form
     private void ShowExceptionDetails(string title, string summary, Exception exception)
     {
         var details = new List<string>();
+        var friendlyMessage = CsvFileUtility.BuildUserFriendlySaveErrorMessage(exception);
+        if (!string.Equals(friendlyMessage, exception.Message, StringComparison.Ordinal))
+        {
+            details.Add(friendlyMessage);
+            details.Add(string.Empty);
+        }
+
         for (var current = exception; current is not null; current = current.InnerException)
         {
             details.Add($"{current.GetType().Name}: {current.Message}");

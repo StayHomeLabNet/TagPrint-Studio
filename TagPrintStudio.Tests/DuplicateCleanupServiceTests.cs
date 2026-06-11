@@ -291,4 +291,48 @@ public sealed partial class ServiceTests
         Assert.Contains("A100,2026-04-25,From first", rewrittenSecond);
         Assert.DoesNotContain("A100,2026-04-20,From first", rewrittenSecond);
     }
+
+    [Fact]
+    public void DuplicateCleanup_Analyze_CarriesValuesFromAllDeletedRows()
+    {
+        var service = new DuplicateCleanupService();
+        var preset = Preset(
+            Field("code", "Code", 0),
+            Field("updatedAt", "UpdatedAt", 1),
+            Field("description", "Description", 2),
+            Field("note", "Note", 3));
+        var files = new List<CsvFileItem>
+        {
+            Csv("latest.csv", ["A100", "2026-04-25", "", ""]),
+            Csv("old1.csv", ["A100", "2026-04-20", "From old1", ""]),
+            Csv("old2.csv", ["A100", "2026-04-15", "", "From old2"])
+        };
+
+        var result = service.Analyze(preset, files, new DuplicateCleanupOptions
+        {
+            KeyFieldId = "code",
+            CompareFieldId = "updatedAt",
+            ValueType = DuplicateValueType.Date,
+            Rule = DuplicateResolutionRule.KeepLargest,
+            Carry = new DuplicateCarryOptions
+            {
+                Enabled = true,
+                FieldIds = ["description", "note"],
+                CopyMode = DuplicateCopyMode.FillIfEmpty
+            }
+        });
+
+        Assert.Equal(2, result.CarryCellCount);
+        Assert.Contains(result.CarryActions, action =>
+            action.FieldId == "description" &&
+            action.Value == "From old1" &&
+            action.SourceFilePath == "old1.csv");
+        Assert.Contains(result.CarryActions, action =>
+            action.FieldId == "note" &&
+            action.Value == "From old2" &&
+            action.SourceFilePath == "old2.csv");
+
+        var keepRow = Assert.Single(result.Items, item => item.Keep);
+        Assert.Equal("Description, Note", keepRow.CarrySummary);
+    }
 }

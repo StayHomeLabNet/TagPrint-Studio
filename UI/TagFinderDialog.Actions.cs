@@ -28,7 +28,7 @@ public sealed partial class TagFinderDialog
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(CsvFileUtility.BuildUserFriendlySaveErrorMessage(ex), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -81,7 +81,7 @@ public sealed partial class TagFinderDialog
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(CsvFileUtility.BuildUserFriendlySaveErrorMessage(ex), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -333,6 +333,7 @@ public sealed partial class TagFinderDialog
             FilePath = fullPath,
             FileName = Path.GetFileName(fullPath),
             EncodingName = queueCsv.EncodingName,
+            Delimiter = queueCsv.Delimiter,
             RowCount = queueCsv.Rows.Count,
             ColumnCount = queueCsv.Header.Length,
             Status = CsvFileStatus.Ok,

@@ -110,6 +110,10 @@ public class CsvFileItem
     public string FilePath { get; set; } = "";
     public string FileName { get; set; } = "";
     public string EncodingName { get; set; } = "";
+    public string Delimiter { get; set; } = ",";
+    public string EncodingDisplayName => Delimiter == CsvFileUtility.DefaultDelimiter
+        ? EncodingName
+        : $"{EncodingName} / Delimiter: {CsvFileUtility.DelimiterDisplayName(Delimiter)}";
     public int RowCount { get; set; }
     public int ColumnCount { get; set; }
     public CsvFileStatus Status { get; set; } = CsvFileStatus.Ok;
@@ -257,6 +261,7 @@ public class CsvPreviewRowContext
     public string FilePath { get; set; } = "";
     public string FileName { get; set; } = "";
     public string EncodingName { get; set; } = "";
+    public string Delimiter { get; set; } = ",";
     public bool HasHeaderRow { get; set; }
     public string[]? HeaderRow { get; set; }
     public List<string[]> AllRows { get; set; } = [];
@@ -299,6 +304,7 @@ public class AppSettings
     public int BackupCleanupRetentionDays { get; set; } = 30;
     public int BackupCleanupMaxCountPerCsv { get; set; } = 10;
     public string LastBackupCleanupFolderPath { get; set; } = "";
+    public BackupCleanupStartupMode BackupCleanupStartupMode { get; set; } = BackupCleanupStartupMode.Ask;
     public bool OpenSaveFolderAfterPdfSave { get; set; }
     public bool DuplicateCarryValuesEnabled { get; set; }
     public List<string> DuplicateCarryFieldIds { get; set; } = [];

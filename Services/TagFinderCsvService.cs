@@ -65,7 +65,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
                 continue;
             }
 
-            WriteCsvFile(file, hasHeaderRow);
+            CsvFileUtility.WriteCsvFile(file, hasHeaderRow);
         }
     }
 
@@ -103,7 +103,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         var lines = new List<string>();
         if (hasHeaderRow)
         {
-            lines.Add(ToCsvLine(header));
+            lines.Add(CsvFileUtility.ToCsvLine(header, firstFile.Delimiter));
         }
 
         var queueRows = new List<string[]>();
@@ -121,18 +121,19 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
             for (var i = 0; i < additionalQuantity; i++)
             {
                 queueRows.Add(row.ToArray());
-                lines.Add(ToCsvLine(row));
+                lines.Add(CsvFileUtility.ToCsvLine(row, firstFile.Delimiter));
             }
         }
 
         var path = NextQueueCsvPath(sourceFolder);
         var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
-        File.WriteAllText(path, content, CsvFileUtility.EncodingForCsv(firstFile.EncodingName));
+        CsvFileUtility.WriteAllTextAtomic(path, content, CsvFileUtility.EncodingForCsv(firstFile.EncodingName));
 
         return new TagFinderQueueCsvResult
         {
             FilePath = path,
             EncodingName = firstFile.EncodingName,
+            Delimiter = firstFile.Delimiter,
             Header = header,
             Rows = queueRows
         };
@@ -210,20 +211,6 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         return $"{flag}Order";
     }
 
-    private static void WriteCsvFile(CsvFileItem file, bool hasHeaderRow)
-    {
-        CsvBackupUtility.CreateTimestampedBackup(file.FilePath);
-        var lines = new List<string>();
-        if (hasHeaderRow && file.HeaderRow is { Length: > 0 })
-        {
-            lines.Add(ToCsvLine(file.HeaderRow));
-        }
-
-        lines.AddRange(file.Rows.Select(ToCsvLine));
-        var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
-        File.WriteAllText(file.FilePath, content, CsvFileUtility.EncodingForCsv(file.EncodingName));
-    }
-
     private static string NextQueueCsvPath(string sourceFolder)
     {
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -270,15 +257,5 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         }
 
         return -1;
-    }
-
-    private static string ToCsvLine(IEnumerable<string> cells) => string.Join(",", cells.Select(EscapeCsvCell));
-
-    private static string EscapeCsvCell(string? value)
-    {
-        var text = value ?? "";
-        return text.Contains('"') || text.Contains(',') || text.Contains('\n') || text.Contains('\r')
-            ? $"\"{text.Replace("\"", "\"\"")}\""
-            : text;
     }
 }

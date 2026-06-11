@@ -94,6 +94,10 @@ public sealed partial class MainForm : Form
     private ToolStripMenuItem settingsBackupMenuItem = null!;
     private ToolStripMenuItem settingsImportMenuItem = null!;
     private ToolStripMenuItem backupCleanupMenuItem = null!;
+    private ToolStripMenuItem backupCleanupStartupMenuItem = null!;
+    private ToolStripMenuItem backupCleanupStartupDisabledMenuItem = null!;
+    private ToolStripMenuItem backupCleanupStartupAskMenuItem = null!;
+    private ToolStripMenuItem backupCleanupStartupAutoMenuItem = null!;
     private ToolStripMenuItem confirmPrintTargetsMenuItem = null!;
     private ToolStripMenuItem largePrintWarningSettingsMenuItem = null!;
     private ToolStripMenuItem appDataLocationMenuItem = null!;
@@ -103,6 +107,7 @@ public sealed partial class MainForm : Form
     private ToolStripMenuItem openStartupCsvLocationMenuItem = null!;
     private ToolStripMenuItem openStartupFolderMenuItem = null!;
     private int busyOperationCount;
+    private bool startupBackupCleanupChecked;
 
     private sealed class FileComboItem
     {
@@ -155,7 +160,11 @@ public sealed partial class MainForm : Form
         AppIcon.Apply(this);
         LocalizationService.LanguageChanged += HandleLanguageChanged;
         Load += (_, _) => InitializeData();
-        Shown += (_, _) => BeginInvoke((Action)ApplyInitialSplitDistances);
+        Shown += (_, _) => BeginInvoke((Action)(() =>
+        {
+            ApplyInitialSplitDistances();
+            RunStartupBackupCleanupIfNeeded();
+        }));
         FormClosing += MainForm_FormClosing;
         FormClosed += (_, _) => LocalizationService.LanguageChanged -= HandleLanguageChanged;
     }

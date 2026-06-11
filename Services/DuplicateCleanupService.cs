@@ -41,8 +41,8 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
         {
             var orderedRows = OrderRowsByPriority(group.ToList(), options);
             var keep = orderedRows[0];
-            var carrySource = options.Carry.Enabled ? orderedRows.Skip(1).FirstOrDefault() : null;
-            var carrySummary = BuildCarryActions(carryActions, carryFields, options, keep, carrySource);
+            var carrySources = options.Carry.Enabled ? orderedRows.Skip(1).ToList() : [];
+            var carrySummary = BuildCarryActions(carryActions, carryFields, options, keep, carrySources);
 
             foreach (var row in orderedRows)
             {
@@ -139,7 +139,7 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
                 }
             }
 
-            WriteCsvFile(file, hasHeaderRow);
+            CsvFileUtility.WriteCsvFile(file, hasHeaderRow);
             updatedFiles.Add(file.FilePath);
         }
 
@@ -277,9 +277,9 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
         List<FieldDefinition> carryFields,
         DuplicateCleanupOptions options,
         DuplicateCandidateRow keep,
-        DuplicateCandidateRow? carrySource)
+        List<DuplicateCandidateRow> carrySources)
     {
-        if (!options.Carry.Enabled || carrySource is null || carryFields.Count == 0)
+        if (!options.Carry.Enabled || carrySources.Count == 0 || carryFields.Count == 0)
         {
             return "";
         }
@@ -294,20 +294,13 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             }
 
             var keepValue = ValueAt(keep.CsvFile.Rows[keep.RowIndex], columnIndex);
+            var carrySource = FindCarrySource(carrySources, columnIndex, keepValue, options.Carry.CopyMode);
+            if (carrySource is null)
+            {
+                continue;
+            }
+
             var sourceValue = ValueAt(carrySource.CsvFile.Rows[carrySource.RowIndex], columnIndex);
-            if (string.IsNullOrWhiteSpace(sourceValue))
-            {
-                continue;
-            }
-
-            var shouldCopy = options.Carry.CopyMode == DuplicateCopyMode.Overwrite
-                ? !string.Equals(keepValue, sourceValue, StringComparison.Ordinal)
-                : string.IsNullOrWhiteSpace(keepValue);
-            if (!shouldCopy)
-            {
-                continue;
-            }
-
             carryActions.Add(new DuplicateCarryAction
             {
                 KeepFilePath = keep.CsvFile.FilePath,
@@ -323,6 +316,36 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
         }
 
         return carriedNames.Count == 0 ? "" : string.Join(", ", carriedNames.Distinct(StringComparer.Ordinal));
+    }
+
+    private static DuplicateCandidateRow? FindCarrySource(
+        List<DuplicateCandidateRow> carrySources,
+        int columnIndex,
+        string keepValue,
+        DuplicateCopyMode copyMode)
+    {
+        if (copyMode == DuplicateCopyMode.FillIfEmpty && !string.IsNullOrWhiteSpace(keepValue))
+        {
+            return null;
+        }
+
+        foreach (var source in carrySources)
+        {
+            var sourceValue = ValueAt(source.CsvFile.Rows[source.RowIndex], columnIndex);
+            if (string.IsNullOrWhiteSpace(sourceValue))
+            {
+                continue;
+            }
+
+            if (copyMode == DuplicateCopyMode.Overwrite && string.Equals(keepValue, sourceValue, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return source;
+        }
+
+        return null;
     }
 
     private static string BuildReason(DuplicateCandidateRow row, DuplicateCandidateRow keep, DuplicateCleanupOptions options)
@@ -392,31 +415,4 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
     }
 
     private static DateTime ParseDate(string text) => TryParseDate(text, out var value) ? value : DateTime.MinValue;
-
-    private static void WriteCsvFile(CsvFileItem file, bool hasHeaderRow)
-    {
-        CsvBackupUtility.CreateTimestampedBackup(file.FilePath);
-        var lines = new List<string>();
-        if (hasHeaderRow && file.HeaderRow is { Length: > 0 })
-        {
-            lines.Add(ToCsvLine(file.HeaderRow));
-        }
-
-        lines.AddRange(file.Rows.Select(ToCsvLine));
-        var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
-        File.WriteAllText(file.FilePath, content, CsvFileUtility.EncodingForCsv(file.EncodingName));
-    }
-
-    private static string ToCsvLine(IEnumerable<string> cells) => string.Join(",", cells.Select(EscapeCsvCell));
-
-    private static string EscapeCsvCell(string? value)
-    {
-        var text = value ?? "";
-        if (!text.Contains(',') && !text.Contains('"') && !text.Contains('\r') && !text.Contains('\n'))
-        {
-            return text;
-        }
-
-        return "\"" + text.Replace("\"", "\"\"") + "\"";
-    }
 }

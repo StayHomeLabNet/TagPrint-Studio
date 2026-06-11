@@ -446,6 +446,129 @@ public sealed partial class ServiceTests
         Assert.Equal("existing-settings", File.ReadAllText(existingSettingsPath, Encoding.UTF8));
     }
 
+
+    [Fact]
+    public void SettingsArchiveService_ImportBackup_RejectsSingleOversizedFileAndKeepsExistingSettings()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+        var existingLayoutPath = Path.Combine(paths.Layouts, "existing.tpslayout");
+        File.WriteAllText(existingLayoutPath, "existing-layout", Encoding.UTF8);
+
+        var zipPath = Path.Combine(temp.DirectoryPath, "oversized.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("layouts/large.tpslayout", CompressionLevel.NoCompression);
+            using var stream = entry.Open();
+            var buffer = new byte[1024 * 1024];
+            for (var i = 0; i < 21; i++)
+            {
+                stream.Write(buffer, 0, buffer.Length);
+            }
+        }
+
+        var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
+        Assert.Contains("too large", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("existing-layout", File.ReadAllText(existingLayoutPath, Encoding.UTF8));
+    }
+
+    [Fact]
+    public void SettingsArchiveService_ImportBackup_RejectsTooManyFilesAndKeepsExistingSettings()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+        var existingSettingsPath = Path.Combine(paths.Settings, "appsettings.json");
+        File.WriteAllText(existingSettingsPath, "existing-settings", Encoding.UTF8);
+
+        var zipPath = Path.Combine(temp.DirectoryPath, "too-many-files.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            for (var i = 0; i < 5001; i++)
+            {
+                archive.CreateEntry($"settings/file-{i:D4}.json");
+            }
+        }
+
+        var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
+        Assert.Contains("too many", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("existing-settings", File.ReadAllText(existingSettingsPath, Encoding.UTF8));
+    }
+
+    [Fact]
+    public void BootstrapService_Initialize_DoesNotReplaceCustomizedDefaultFilesWhenMojibakeTextAppears()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+
+        var presetPath = Path.Combine(paths.Presets, "default-price-tag.tpspreset");
+        var customPreset = Preset(Field("name", "Name", 0));
+        customPreset.PresetId = "custom-default-price-tag";
+        customPreset.PresetName = "Customized Default";
+        customPreset.Description = "User text that happens to contain 繝";
+        JsonFile.Save(presetPath, customPreset);
+
+        var layoutPath = Path.Combine(paths.Layouts, "default-price-tag.tpslayout");
+        var customLayout = Layout();
+        customLayout.LayoutId = "custom-default-price-tag-layout";
+        customLayout.LayoutName = "Customized Layout";
+        customLayout.Description = "User text that happens to contain 縺";
+        JsonFile.Save(layoutPath, customLayout);
+
+        new BootstrapService(paths).Initialize();
+
+        var loadedPreset = JsonFile.Load<PresetFile>(presetPath);
+        var loadedLayout = JsonFile.Load<LayoutFile>(layoutPath);
+        Assert.Equal("custom-default-price-tag", loadedPreset.PresetId);
+        Assert.Equal("Customized Default", loadedPreset.PresetName);
+        Assert.Contains("繝", loadedPreset.Description);
+        Assert.Equal("custom-default-price-tag-layout", loadedLayout.LayoutId);
+        Assert.Equal("Customized Layout", loadedLayout.LayoutName);
+        Assert.Contains("縺", loadedLayout.Description);
+        Assert.Empty(Directory.GetFiles(paths.Presets, "default-price-tag.tpspreset.mojibake-backup-*"));
+        Assert.Empty(Directory.GetFiles(paths.Layouts, "default-price-tag.tpslayout.mojibake-backup-*"));
+    }
+
+    [Fact]
+    public void BootstrapService_Initialize_ReplacesDefaultMojibakeFilesAndCreatesBackups()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+
+        var presetPath = Path.Combine(paths.Presets, "default-price-tag.tpspreset");
+        var mojibakePreset = Preset(Field("name", "Name", 0));
+        mojibakePreset.PresetId = "default-price-tag";
+        mojibakePreset.PresetName = "繝励Μ繧ｻ繝ット";
+        mojibakePreset.Description = "繝壹Ξ繝｣繝ｼ";
+        JsonFile.Save(presetPath, mojibakePreset);
+
+        var layoutPath = Path.Combine(paths.Layouts, "default-price-tag.tpslayout");
+        var mojibakeLayout = Layout();
+        mojibakeLayout.LayoutId = "default-price-tag-layout";
+        mojibakeLayout.LayoutName = "縺ゅｋ繝ｬ繧､繧｢繧ｦ繝ト";
+        mojibakeLayout.Description = "縺ゅｋ隱ｬ譏";
+        JsonFile.Save(layoutPath, mojibakeLayout);
+
+        new BootstrapService(paths).Initialize();
+
+        var loadedPreset = JsonFile.Load<PresetFile>(presetPath);
+        var loadedLayout = JsonFile.Load<LayoutFile>(layoutPath);
+        Assert.Equal("default-price-tag", loadedPreset.PresetId);
+        Assert.Equal("Default Price Tag", loadedPreset.PresetName);
+        Assert.DoesNotContain("繝", loadedPreset.Description);
+        Assert.Equal("default-price-tag-layout", loadedLayout.LayoutId);
+        Assert.Equal("Default Price Tag Layout", loadedLayout.LayoutName);
+        Assert.DoesNotContain("縺", loadedLayout.Description);
+
+        var presetBackup = Assert.Single(Directory.GetFiles(paths.Presets, "default-price-tag.tpspreset.mojibake-backup-*"));
+        var layoutBackup = Assert.Single(Directory.GetFiles(paths.Layouts, "default-price-tag.tpslayout.mojibake-backup-*"));
+        Assert.Contains("繝", File.ReadAllText(presetBackup, Encoding.UTF8));
+        Assert.Contains("縺", File.ReadAllText(layoutBackup, Encoding.UTF8));
+    }
+
     [Fact]
     public void JsonFile_Load_MovesBrokenJsonAsideAndReturnsDefault()
     {
@@ -463,6 +586,96 @@ public sealed partial class ServiceTests
         Assert.Equal(path, warning.Path);
         Assert.Equal(brokenPath, warning.BrokenPath);
         JsonFile.ClearRecoveryWarnings();
+    }
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_PreservesTabDelimiter()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Item Code\tStyle\r\nA001\tCasual\r\n", new UTF8Encoding(false));
+        var loader = new CsvLoaderService();
+        var import = loader.LoadFiles([path], Preset(), hasHeaderRow: true);
+        var file = Assert.Single(import.Files);
+
+        new CsvColumnService().AddColumnToAllFiles([file], "tagPrint", hasHeaderRow: true);
+
+        var content = File.ReadAllText(path, Encoding.UTF8);
+        Assert.Contains("Item Code\tStyle\ttagPrint", content);
+        Assert.DoesNotContain("Item Code,Style,tagPrint", content);
+    }
+
+    [Fact]
+    public void TagFinderCsvService_SaveFlags_PreservesSemicolonDelimiter()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Item Code;tagPrint\r\nA001;false\r\n", new UTF8Encoding(false));
+        var loader = new CsvLoaderService();
+        var import = loader.LoadFiles([path], Preset(), hasHeaderRow: true);
+        var file = Assert.Single(import.Files);
+
+        new TagFinderCsvService().SaveFlags(
+            [file],
+            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true, WasChecked = false }],
+            "tagPrint",
+            "tagPrintOrder",
+            hasHeaderRow: true);
+
+        var content = File.ReadAllText(path, Encoding.UTF8);
+        Assert.Contains("Item Code;tagPrint;tagPrintOrder", content);
+        Assert.Contains("A001;true;1", content);
+        Assert.DoesNotContain("Item Code,tagPrint,tagPrintOrder", content);
+    }
+
+    [Fact]
+    public void TagFinderCsvService_SaveFlags_PreservesTabDelimiter()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText(
+            "items.csv",
+            "Item Code\tName\ttagPrint\r\nA001\tApple\tfalse\r\n",
+            new UTF8Encoding(false));
+        var loader = new CsvLoaderService();
+        var import = loader.LoadFiles([path], Preset(), hasHeaderRow: true);
+        var file = Assert.Single(import.Files);
+
+        Assert.Equal("\t", file.Delimiter);
+
+        new TagFinderCsvService().SaveFlags(
+            [file],
+            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true, WasChecked = false }],
+            "tagPrint",
+            "tagPrintOrder",
+            hasHeaderRow: true);
+
+        var content = File.ReadAllText(path, Encoding.UTF8);
+        Assert.Contains("Item Code\tName\ttagPrint\ttagPrintOrder", content);
+        Assert.Contains("A001\tApple\ttrue\t1", content);
+        Assert.DoesNotContain("Item Code,Name,tagPrint,tagPrintOrder", content);
+        Assert.DoesNotContain("A001,Apple,true,1", content);
+    }
+
+    [Fact]
+    public void CsvFileUtility_WriteAllTextAtomic_ReplacesExistingFileWithoutLeavingTempFiles()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "old", Encoding.UTF8);
+
+        CsvFileUtility.WriteAllTextAtomic(path, "new", Encoding.UTF8);
+
+        Assert.Equal("new", File.ReadAllText(path, Encoding.UTF8));
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "*.tmp-*"));
+    }
+
+    [Fact]
+    public void CsvFileUtility_WriteAllTextAtomic_CreatesNewFileWithoutLeavingTempFiles()
+    {
+        using var temp = new TempDirectory();
+        var path = Path.Combine(temp.DirectoryPath, "new.csv");
+
+        CsvFileUtility.WriteAllTextAtomic(path, "created", Encoding.UTF8);
+
+        Assert.Equal("created", File.ReadAllText(path, Encoding.UTF8));
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "*.tmp-*"));
     }
 
 
@@ -599,6 +812,92 @@ public sealed partial class ServiceTests
             issue.Contains("小さ", StringComparison.OrdinalIgnoreCase));
     }
 
+
+    [Fact]
+    public void PreflightCheck_ReportsInvalidImageFile()
+    {
+        using var temp = new TempDirectory();
+        var imagePath = temp.WriteText("broken-image.png", "this is not a real image", Encoding.UTF8);
+        var service = new PreflightCheckService();
+        var layout = Layout();
+        layout.Elements.Add(ImageElement(imagePath));
+        var preset = Preset(Field("name", "Name", 0));
+        var csv = Csv("items.csv", ["A"]);
+
+        var result = service.Check(layout, preset, [csv]);
+
+        Assert.True(result.HasBlockingIssues);
+        Assert.Contains(result.Errors, issue =>
+            issue.Contains("Invalid image", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("画像ファイル", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PreflightCheck_ReportsOversizedImageFileBeforeLoadingImage()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.DirectoryPath);
+        var imagePath = Path.Combine(temp.DirectoryPath, "huge-image.png");
+        using (var stream = File.Create(imagePath))
+        {
+            stream.SetLength(20L * 1024 * 1024 + 1);
+        }
+
+        var service = new PreflightCheckService();
+        var layout = Layout();
+        layout.Elements.Add(ImageElement(imagePath));
+        var preset = Preset(Field("name", "Name", 0));
+        var csv = Csv("items.csv", ["A"]);
+
+        var result = service.Check(layout, preset, [csv]);
+
+        Assert.True(result.HasBlockingIssues);
+        Assert.Contains(result.Errors, issue =>
+            issue.Contains("too large", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("大きすぎ", StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    [Fact]
+    public void PreflightCheck_ReportsOversizedImageDimensions()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.DirectoryPath);
+        var imagePath = Path.Combine(temp.DirectoryPath, "wide-image.png");
+        using (var bitmap = new Bitmap(12001, 1))
+        {
+            bitmap.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+
+        var service = new PreflightCheckService();
+        var layout = Layout();
+        layout.Elements.Add(ImageElement(imagePath));
+        var preset = Preset(Field("name", "Name", 0));
+        var csv = Csv("items.csv", ["A"]);
+
+        var result = service.Check(layout, preset, [csv]);
+
+        Assert.True(result.HasBlockingIssues);
+        Assert.Contains(result.Errors, issue =>
+            issue.Contains("dimensions", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("画像サイズ", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PreviewRenderer_SkipsInvalidImageWithoutThrowing()
+    {
+        using var temp = new TempDirectory();
+        var imagePath = temp.WriteText("broken-image.png", "this is not a real image", Encoding.UTF8);
+        var renderer = new PreviewRenderService(new UnitConversionService());
+        var layout = Layout(tagWidth: 50, tagHeight: 50);
+        layout.Elements.Add(ImageElement(imagePath));
+
+        using var bitmap = renderer.RenderSingleTag(layout, Preset(Field("name", "Name", 0)), new Dictionary<string, string>(), scale: 2f);
+
+        Assert.True(bitmap.Width > 0);
+        Assert.True(bitmap.Height > 0);
+    }
+
     private static FieldDefinition Field(string id, string name, int? columnIndex, bool required = false) => new()
     {
         FieldId = id,
@@ -624,6 +923,20 @@ public sealed partial class ServiceTests
     };
 
 
+
+
+    private static LayoutElement ImageElement(string imagePath) => new()
+    {
+        ElementId = Guid.NewGuid().ToString("N"),
+        Name = "Image",
+        ElementType = LayoutElementType.Image,
+        ImagePath = imagePath,
+        X = 2,
+        Y = 2,
+        Width = 20,
+        Height = 20,
+        Visible = true
+    };
 
     private static LayoutElement Barcode(string fieldId, string barcodeType, double width, double height, bool showText = true) => new()
     {

@@ -176,17 +176,28 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
     {
         var imagePath = ResolveImagePath(layout, element.ImagePath);
         if (!File.Exists(imagePath)) return;
-        using var image = Image.FromFile(imagePath);
-        if (!element.KeepAspectRatio)
+
+        try
         {
-            graphics.DrawImage(image, rect);
+            using var image = Image.FromFile(imagePath);
+            if (!element.KeepAspectRatio)
+            {
+                graphics.DrawImage(image, rect);
+                return;
+            }
+
+            var ratio = Math.Min(rect.Width / image.Width, rect.Height / image.Height);
+            var width = image.Width * ratio;
+            var height = image.Height * ratio;
+            var left = rect.Left + (rect.Width - width) / 2;
+            var top = rect.Top + (rect.Height - height) / 2;
+            graphics.DrawImage(image, left, top, width, height);
+        }
+        catch
+        {
+            // Preflight should report invalid image files, but rendering must not crash
+            // if an image becomes unreadable after preflight or preview is called directly.
             return;
         }
-        var ratio = Math.Min(rect.Width / image.Width, rect.Height / image.Height);
-        var width = image.Width * ratio;
-        var height = image.Height * ratio;
-        var left = rect.Left + (rect.Width - width) / 2;
-        var top = rect.Top + (rect.Height - height) / 2;
-        graphics.DrawImage(image, left, top, width, height);
     }
 }

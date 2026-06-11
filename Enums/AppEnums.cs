@@ -18,6 +18,7 @@ public enum OutputScopeType { SinglePdfAllCsv, SeparatePdfPerCsv, IndividualPngP
 public enum PrintScalingMode { ActualSize, FitPrintableArea }
 public enum PrintSortMode { LoadOrder, ItemCode, SelectedField, PrintTargetOrder }
 public enum PrintSortValueType { Text, Number, Natural, Date }
+public enum BackupCleanupStartupMode { Disabled, Ask, Auto }
 public enum DuplicateValueType { Text, Number, Date }
 public enum DuplicateResolutionRule { KeepLargest, KeepSmallest, KeepNonEmpty, KeepFirst }
 public enum DuplicateCopyMode { FillIfEmpty, Overwrite }

@@ -158,7 +158,7 @@ public sealed class CsvMergeService : ICsvMergeService
             parent.Rows.AddRange(files[childPath].Rows.Select(row => row.ToArray()));
         }
 
-        WriteCsvFile(parent, preview.HasHeaderRow);
+        CsvFileUtility.WriteCsvFile(parent, preview.HasHeaderRow, createBackup: false);
 
         var deletedSourceFileCount = 0;
         if (preview.DeleteMergedSourceFiles)
@@ -246,31 +246,5 @@ public sealed class CsvMergeService : ICsvMergeService
         return HeadersMatch(parent.HeaderRow, file.HeaderRow)
             ? (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "ヘッダー一致" : "Headers match")
             : (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "ヘッダー不一致" : "Headers do not match");
-    }
-
-    private static void WriteCsvFile(CsvFileItem file, bool hasHeaderRow)
-    {
-        var lines = new List<string>();
-        if (hasHeaderRow && file.HeaderRow is { Length: > 0 })
-        {
-            lines.Add(ToCsvLine(file.HeaderRow));
-        }
-
-        lines.AddRange(file.Rows.Select(ToCsvLine));
-        var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
-        File.WriteAllText(file.FilePath, content, CsvFileUtility.EncodingForCsv(file.EncodingName));
-    }
-
-    private static string ToCsvLine(IEnumerable<string> cells) => string.Join(",", cells.Select(EscapeCsvCell));
-
-    private static string EscapeCsvCell(string? value)
-    {
-        var text = value ?? "";
-        if (!text.Contains(',') && !text.Contains('"') && !text.Contains('\r') && !text.Contains('\n'))
-        {
-            return text;
-        }
-
-        return "\"" + text.Replace("\"", "\"\"") + "\"";
     }
 }

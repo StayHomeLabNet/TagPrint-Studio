@@ -73,7 +73,8 @@ public sealed partial class ServiceTests
         Assert.Equal(CsvFileStatus.Ok, file.Status);
         Assert.Equal(["Code", "Name", "Price"], file.HeaderRow);
         Assert.Equal(["A001", "Apple", "120"], file.Rows.Single());
-        Assert.Contains("Delimiter: Tab", file.EncodingName);
+        Assert.Equal("\t", file.Delimiter);
+        Assert.Contains("Delimiter: Tab", file.EncodingDisplayName);
     }
 
     [Fact]

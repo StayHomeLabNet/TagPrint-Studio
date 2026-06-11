@@ -82,6 +82,7 @@ public sealed partial class MainForm : Form
         if (settingsImportMenuItem is not null) settingsImportMenuItem.Text = SettingsImportMenuText();
         if (settingsBackupMenuItem is not null) settingsBackupMenuItem.Text = SettingsBackupMenuText();
         if (backupCleanupMenuItem is not null) backupCleanupMenuItem.Text = BackupCleanupMenuText();
+        UpdateBackupCleanupStartupMenu();
         if (appDataLocationMenuItem is not null) appDataLocationMenuItem.Text = AppDataLocationMenuText();
         if (openAppDataLocationMenuItem is not null) openAppDataLocationMenuItem.Text = OpenAppDataLocationMenuText();
         if (resetAppDataLocationMenuItem is not null) resetAppDataLocationMenuItem.Text = ResetAppDataLocationMenuText();

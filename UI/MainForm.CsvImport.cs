@@ -41,7 +41,7 @@ public sealed partial class MainForm
         csvGrid.Columns.Add(TextColumn("ColumnCount", "列数", 55));
         csvGrid.Columns.Add(TextColumn("Status", "状態", 120));
         csvGrid.Columns.Add(TextColumn("Note", "備考", 240));
-        csvGrid.Columns.Add(TextColumn("EncodingName", "Encoding", 92));
+        csvGrid.Columns.Add(TextColumn("EncodingDisplayName", "Encoding", 170));
         if (csvGrid.Columns["RowCount"] is DataGridViewColumn rowCountColumn)
         {
             rowCountColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
@@ -51,6 +51,28 @@ public sealed partial class MainForm
         {
             columnCountColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
             columnCountColumn.MinimumWidth = 60;
+        }
+        if (csvGrid.Columns["EncodingDisplayName"] is DataGridViewColumn encodingColumn)
+        {
+            encodingColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            encodingColumn.MinimumWidth = 120;
+        }
+        if (csvGrid.Columns["Status"] is DataGridViewColumn statusColumn)
+        {
+            statusColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            statusColumn.MinimumWidth = 90;
+        }
+        if (csvGrid.Columns["Note"] is DataGridViewColumn noteColumn)
+        {
+            noteColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            noteColumn.MinimumWidth = 180;
+            noteColumn.FillWeight = 140;
+        }
+        if (csvGrid.Columns["FilePath"] is DataGridViewColumn pathColumn)
+        {
+            pathColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            pathColumn.MinimumWidth = 220;
+            pathColumn.FillWeight = 180;
         }
 
         csvGrid.SelectionChanged += (_, _) =>

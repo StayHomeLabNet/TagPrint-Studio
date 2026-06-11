@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 
@@ -5,6 +6,10 @@ namespace TagPrintStudio.Services;
 
 public sealed class BootstrapService
 {
+    private const string DefaultPresetId = "default-price-tag";
+    private const string DefaultLayoutId = "default-price-tag-layout";
+    private const string MojibakeBackupReason = "mojibake-backup";
+
     private readonly AppPaths paths;
 
     public BootstrapService(AppPaths paths) => this.paths = paths;
@@ -29,12 +34,14 @@ public sealed class BootstrapService
     private void EnsureDefaultPreset()
     {
         var path = Path.Combine(paths.Presets, "default-price-tag.tpspreset");
-        if (File.Exists(path) && !ContainsMojibake(path)) return;
+        if (!ShouldReplaceDefaultPreset(path)) return;
+
+        BackupIfExists(path, MojibakeBackupReason);
 
         var now = DateTime.Now;
         var preset = new PresetFile
         {
-            PresetId = "default-price-tag",
+            PresetId = DefaultPresetId,
             PresetName = "Default Price Tag",
             Description = "標準の値札用プリセット",
             HasHeaderRow = true,
@@ -66,12 +73,14 @@ public sealed class BootstrapService
     private void EnsureDefaultLayout()
     {
         var path = Path.Combine(paths.Layouts, "default-price-tag.tpslayout");
-        if (File.Exists(path) && !ContainsMojibake(path)) return;
+        if (!ShouldReplaceDefaultLayout(path)) return;
+
+        BackupIfExists(path, MojibakeBackupReason);
 
         var now = DateTime.Now;
         var layout = new LayoutFile
         {
-            LayoutId = "default-price-tag-layout",
+            LayoutId = DefaultLayoutId,
             LayoutName = "Default Price Tag Layout",
             Description = "標準の値札レイアウト",
             CreatedAt = now,
@@ -109,6 +118,59 @@ public sealed class BootstrapService
         TextAlign = align,
         Visible = true
     };
+
+    private static bool ShouldReplaceDefaultPreset(string path)
+    {
+        if (!File.Exists(path)) return true;
+        if (!TryLoadJson<PresetFile>(path, out var preset)) return false;
+        if (!string.Equals(preset.PresetId, DefaultPresetId, StringComparison.Ordinal)) return false;
+        return ContainsMojibake(path);
+    }
+
+    private static bool ShouldReplaceDefaultLayout(string path)
+    {
+        if (!File.Exists(path)) return true;
+        if (!TryLoadJson<LayoutFile>(path, out var layout)) return false;
+        if (!string.Equals(layout.LayoutId, DefaultLayoutId, StringComparison.Ordinal)) return false;
+        return ContainsMojibake(path);
+    }
+
+    private static bool TryLoadJson<T>(string path, out T value) where T : new()
+    {
+        try
+        {
+            value = JsonSerializer.Deserialize<T>(File.ReadAllText(path), JsonFile.Options) ?? new T();
+            return true;
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            value = new T();
+            return false;
+        }
+    }
+
+    private static void BackupIfExists(string path, string reason)
+    {
+        if (!File.Exists(path)) return;
+
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var candidate = $"{path}.{reason}-{timestamp}";
+        if (!File.Exists(candidate))
+        {
+            File.Copy(path, candidate);
+            return;
+        }
+
+        for (var i = 1; ; i++)
+        {
+            candidate = $"{path}.{reason}-{timestamp}-{i}";
+            if (!File.Exists(candidate))
+            {
+                File.Copy(path, candidate);
+                return;
+            }
+        }
+    }
 
     private static bool ContainsMojibake(string path)
     {

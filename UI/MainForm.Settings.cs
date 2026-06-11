@@ -466,5 +466,119 @@ public sealed partial class MainForm : Form
         SaveCurrentSettings();
     }
 
+    private void RunStartupBackupCleanupIfNeeded()
+    {
+        if (startupBackupCleanupChecked)
+        {
+            return;
+        }
+
+        startupBackupCleanupChecked = true;
+        if (settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Disabled)
+        {
+            return;
+        }
+
+        var folderPath = ResolveStartupBackupCleanupFolder();
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var preview = backupCleanupService.Preview(
+                folderPath,
+                settings.BackupCleanupRetentionDays,
+                settings.BackupCleanupMaxCountPerCsv);
+            if (preview.DeleteCount <= 0)
+            {
+                return;
+            }
+
+            if (settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Ask)
+            {
+                var message = LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? $"起動時チェックで、整理対象のバックアップが {preview.DeleteCount} 件見つかりました。今すぐ整理しますか？"
+                    : $"{preview.DeleteCount} backup file(s) can be cleaned up on startup. Run cleanup now?";
+                using var dialog = new StartupBackupCleanupDialog(
+                    BackupCleanupStartupDialogTitle(),
+                    message,
+                    preview.FolderPath,
+                    preview.DeleteCount,
+                    preview.DeleteBytes);
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                if (dialog.EnableAutoRunChecked)
+                {
+                    settings.BackupCleanupStartupMode = BackupCleanupStartupMode.Auto;
+                    SaveCurrentSettings();
+                    UpdateBackupCleanupStartupMenu();
+                }
+                else if (dialog.DisableStartupCleanupChecked)
+                {
+                    settings.BackupCleanupStartupMode = BackupCleanupStartupMode.Disabled;
+                    SaveCurrentSettings();
+                    UpdateBackupCleanupStartupMenu();
+                }
+            }
+
+            var result = backupCleanupService.Cleanup(preview);
+            if (settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Ask)
+            {
+                var message = LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? $"バックアップを {result.DeletedCount} 件整理しました。"
+                    : $"Cleaned up {result.DeletedCount} backup file(s).";
+                MessageBox.Show(
+                    message,
+                    BackupCleanupStartupDialogTitle(),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowExceptionDetails(
+                BackupCleanupStartupErrorTitle(),
+                BackupCleanupStartupErrorSummary(),
+                ex);
+        }
+    }
+
+    private string ResolveStartupBackupCleanupFolder()
+    {
+        if (!string.IsNullOrWhiteSpace(settings.LastBackupCleanupFolderPath))
+        {
+            return settings.LastBackupCleanupFolderPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.StartupCsvFolderPath))
+        {
+            return settings.StartupCsvFolderPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.StartupCsvPath))
+        {
+            return Path.GetDirectoryName(settings.StartupCsvPath) ?? "";
+        }
+
+        return "";
+    }
+
+    private static string BackupCleanupStartupDialogTitle() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "バックアップ整理"
+        : "Backup Cleanup";
+
+    private static string BackupCleanupStartupErrorTitle() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "起動時バックアップ整理エラー"
+        : "Startup Backup Cleanup Error";
+
+    private static string BackupCleanupStartupErrorSummary() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "起動時のバックアップ整理中にエラーが発生しました。"
+        : "An error occurred while cleaning up backups on startup.";
+
 
 }

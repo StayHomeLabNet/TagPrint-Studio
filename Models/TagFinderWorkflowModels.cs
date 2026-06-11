@@ -25,6 +25,7 @@ public class TagFinderQueueCsvResult
 {
     public string FilePath { get; set; } = "";
     public string EncodingName { get; set; } = "";
+    public string Delimiter { get; set; } = ",";
     public string[] Header { get; set; } = [];
     public List<string[]> Rows { get; set; } = [];
 }

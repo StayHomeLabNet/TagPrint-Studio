@@ -33,14 +33,14 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 {
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
+                    Delimiter = delimiter,
                     EncodingName = detection.Kind switch
                     {
                         EncodingKind.Utf8Bom => "UTF-8 BOM",
                         EncodingKind.Utf8 => "UTF-8",
                         EncodingKind.ShiftJis => "Shift_JIS",
-                    _ => detection.Encoding.WebName
-                }
-                    + (delimiter == "," ? "" : $" / Delimiter: {DelimiterName(delimiter)}")
+                        _ => detection.Encoding.WebName
+                    }
                 };
                 if (parsed.Count == 0)
                 {
@@ -234,14 +234,6 @@ public sealed class CsvLoaderService : ICsvLoaderService
 
         return records;
     }
-
-    private static string DelimiterName(string delimiter) => delimiter switch
-    {
-        "\t" => "Tab",
-        ";" => "Semicolon",
-        _ => delimiter
-    };
-
     private sealed record EncodingDetectionResult(Encoding Encoding, EncodingKind Kind);
     private enum EncodingKind { Utf8Bom, Utf8, ShiftJis }
 }

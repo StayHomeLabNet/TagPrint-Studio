@@ -231,13 +231,13 @@ public sealed partial class LayoutDesignerForm
                 var lines = new List<string>();
                 if (first.HasHeaderRow && first.HeaderRow is { Length: > 0 })
                 {
-                    lines.Add(ToCsvLine(first.HeaderRow));
+                    lines.Add(CsvFileUtility.ToCsvLine(first.HeaderRow, first.Delimiter));
                 }
-                lines.AddRange(first.AllRows.Select(ToCsvLine));
+                lines.AddRange(first.AllRows.Select(row => CsvFileUtility.ToCsvLine(row, first.Delimiter)));
 
                 var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
                 CsvBackupUtility.CreateTimestampedBackup(first.FilePath);
-                File.WriteAllText(first.FilePath, content, CsvFileUtility.EncodingForCsv(first));
+                CsvFileUtility.WriteAllTextAtomic(first.FilePath, content, CsvFileUtility.EncodingForCsv(first));
             }
 
             foreach (var row in dirtyRows) row.IsDirty = false;
@@ -249,17 +249,8 @@ public sealed partial class LayoutDesignerForm
         }
         catch (Exception ex)
         {
-            MessageBox.Show(LocalizationService.T("layout.message.csvSaveFailed", ex.Message), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(LocalizationService.T("layout.message.csvSaveFailed", CsvFileUtility.BuildUserFriendlySaveErrorMessage(ex)), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
-    }
-
-    private static string ToCsvLine(IEnumerable<string> cells) => string.Join(",", cells.Select(EscapeCsvCell));
-
-    private static string EscapeCsvCell(string? value)
-    {
-        var text = value ?? "";
-        if (!text.Contains(',') && !text.Contains('"') && !text.Contains('\r') && !text.Contains('\n')) return text;
-        return "\"" + text.Replace("\"", "\"\"") + "\"";
     }
 
     private static void EnsureRowWidth(CsvPreviewRowContext context, int width)

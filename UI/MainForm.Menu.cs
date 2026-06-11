@@ -28,6 +28,18 @@ public sealed partial class MainForm : Form
         settingsImportMenuItem.Click += (_, _) => ImportSettingsArchive();
         backupCleanupMenuItem = new ToolStripMenuItem(BackupCleanupMenuText());
         backupCleanupMenuItem.Click += (_, _) => CleanupBackupFiles();
+        backupCleanupStartupDisabledMenuItem = new ToolStripMenuItem(BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Disabled));
+        backupCleanupStartupDisabledMenuItem.Click += (_, _) => SetBackupCleanupStartupMode(BackupCleanupStartupMode.Disabled);
+        backupCleanupStartupAskMenuItem = new ToolStripMenuItem(BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Ask));
+        backupCleanupStartupAskMenuItem.Click += (_, _) => SetBackupCleanupStartupMode(BackupCleanupStartupMode.Ask);
+        backupCleanupStartupAutoMenuItem = new ToolStripMenuItem(BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Auto));
+        backupCleanupStartupAutoMenuItem.Click += (_, _) => SetBackupCleanupStartupMode(BackupCleanupStartupMode.Auto);
+        backupCleanupStartupMenuItem = new ToolStripMenuItem(BackupCleanupStartupMenuText());
+        backupCleanupStartupMenuItem.DropDownItems.AddRange([
+            backupCleanupStartupDisabledMenuItem,
+            backupCleanupStartupAskMenuItem,
+            backupCleanupStartupAutoMenuItem
+        ]);
         confirmPrintTargetsMenuItem = Item("main.menu.confirmPrintTargets", (_, _) => ToggleConfirmPrintTargets());
         confirmPrintTargetsMenuItem.CheckOnClick = true;
         largePrintWarningSettingsMenuItem = Item("main.menu.largePrintWarning", (_, _) => ConfigureLargePrintWarning());
@@ -62,6 +74,7 @@ public sealed partial class MainForm : Form
             settingsImportMenuItem,
             settingsBackupMenuItem,
             backupCleanupMenuItem,
+            backupCleanupStartupMenuItem,
             openSettingsLocationMenuItem,
             new ToolStripSeparator(),
             MenuGroup("main.menu.language", japaneseLanguageMenuItem, englishLanguageMenuItem));
@@ -163,6 +176,23 @@ public sealed partial class MainForm : Form
         ? "バックアップファイルを整理..."
         : "Clean Up Backup Files...";
 
+    private static string BackupCleanupStartupMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
+        ? "起動時にバックアップ整理"
+        : "Clean Up Backups on Startup";
+
+    private static string BackupCleanupStartupModeMenuText(BackupCleanupStartupMode mode)
+    {
+        return (LocalizationService.CurrentLanguage, mode) switch
+        {
+            (AppLanguage.Japanese, BackupCleanupStartupMode.Disabled) => "しない",
+            (AppLanguage.Japanese, BackupCleanupStartupMode.Ask) => "確認してから実行",
+            (AppLanguage.Japanese, BackupCleanupStartupMode.Auto) => "自動実行",
+            (_, BackupCleanupStartupMode.Disabled) => "Disabled",
+            (_, BackupCleanupStartupMode.Ask) => "Ask Before Running",
+            _ => "Run Automatically"
+        };
+    }
+
     private static string AppDataLocationMenuText() => LocalizationService.CurrentLanguage == AppLanguage.Japanese
         ? "アプリデータ保存場所を変更する"
         : "Change App Data Storage Location";
@@ -210,6 +240,37 @@ public sealed partial class MainForm : Form
         largePrintWarningSettingsMenuItem.Text = settings.LargePrintPageWarningThreshold > 0
             ? LocalizationService.T("main.menu.largePrintWarningWithValue", settings.LargePrintPageWarningThreshold)
             : LocalizationService.T("main.menu.largePrintWarningDisabled");
+    }
+
+    private void SetBackupCleanupStartupMode(BackupCleanupStartupMode mode)
+    {
+        settings.BackupCleanupStartupMode = mode;
+        SaveCurrentSettings();
+        UpdateBackupCleanupStartupMenu();
+    }
+
+    private void UpdateBackupCleanupStartupMenu()
+    {
+        if (backupCleanupStartupMenuItem is null) return;
+
+        backupCleanupStartupMenuItem.Text = BackupCleanupStartupMenuText();
+        if (backupCleanupStartupDisabledMenuItem is not null)
+        {
+            backupCleanupStartupDisabledMenuItem.Text = BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Disabled);
+            backupCleanupStartupDisabledMenuItem.Checked = settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Disabled;
+        }
+
+        if (backupCleanupStartupAskMenuItem is not null)
+        {
+            backupCleanupStartupAskMenuItem.Text = BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Ask);
+            backupCleanupStartupAskMenuItem.Checked = settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Ask;
+        }
+
+        if (backupCleanupStartupAutoMenuItem is not null)
+        {
+            backupCleanupStartupAutoMenuItem.Text = BackupCleanupStartupModeMenuText(BackupCleanupStartupMode.Auto);
+            backupCleanupStartupAutoMenuItem.Checked = settings.BackupCleanupStartupMode == BackupCleanupStartupMode.Auto;
+        }
     }
 
 
