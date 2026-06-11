@@ -248,10 +248,10 @@ public sealed partial class ServiceTests
         condition.PrintConditionEnabled = true;
         condition.PrintConditionType = PrintConditionType.Date;
         condition.PrintConditionOperator = PrintConditionOperator.OnOrAfter;
-        condition.PrintConditionValue = "25/04/26";
+        condition.PrintConditionValue = "2026-04-25";
         var preset = Preset(Field("code", "Code", 0), condition);
-        var first = Csv("first.csv", ["A001", "24/04/26"], ["A002", "25/04/26"]);
-        var second = Csv("second.csv", ["B001", "26/04/26"]);
+        var first = Csv("first.csv", ["A001", "2026-04-24"], ["A002", "2026-04-25"]);
+        var second = Csv("second.csv", ["B001", "2026-04-26"]);
 
         var rows = PrintableRowService.PreviewRows(preset, [first, second], hasHeaderRow: true);
 
