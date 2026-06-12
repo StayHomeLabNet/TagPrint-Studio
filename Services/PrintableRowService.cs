@@ -24,14 +24,14 @@ public static class PrintableRowService
         return currentFile is { Status: CsvFileStatus.Ok } ? [currentFile] : [];
     }
 
-    public static List<string[]> PrintableRows(PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text)
+    public static List<string[]> PrintableRows(PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text, string printTargetOrderColumnName = "")
     {
-        return PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType)
+        return PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName)
             .Select(entry => entry.Row)
             .ToList();
     }
 
-    public static List<PrintableRowEntry> PrintableRowEntries(PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text)
+    public static List<PrintableRowEntry> PrintableRowEntries(PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text, string printTargetOrderColumnName = "")
     {
         var entries = files
             .Select((file, fileIndex) => new { file, fileIndex })
@@ -43,17 +43,18 @@ public static class PrintableRowService
                 FileIndex = item.fileIndex,
                 RowIndex = rowIndex
             }))
+            .Where(entry => !CsvFileUtility.IsBlankRow(entry.Row))
             .Where(entry => PrintConditionService.MatchesAll(preset, entry.Row))
             .ToList();
 
-        return SortEntries(preset, entries, sortMode, sortFieldId, sortValueType);
+        return SortEntries(preset, entries, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName);
     }
 
-    public static List<CsvPreviewRowContext> PreviewRows(PresetFile preset, IEnumerable<CsvFileItem> files, bool hasHeaderRow, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text)
+    public static List<CsvPreviewRowContext> PreviewRows(PresetFile preset, IEnumerable<CsvFileItem> files, bool hasHeaderRow, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text, string printTargetOrderColumnName = "")
     {
         var contexts = new List<CsvPreviewRowContext>();
 
-        foreach (var entry in PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType))
+        foreach (var entry in PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName))
         {
             var csvFile = entry.File;
             contexts.Add(new CsvPreviewRowContext
@@ -74,22 +75,21 @@ public static class PrintableRowService
         return contexts;
     }
 
-    private static List<PrintableRowEntry> SortEntries(PresetFile preset, List<PrintableRowEntry> entries, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType)
+    private static List<PrintableRowEntry> SortEntries(PresetFile preset, List<PrintableRowEntry> entries, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType, string printTargetOrderColumnName)
     {
         if (sortMode == PrintSortMode.LoadOrder) return entries;
+
+        if (sortMode == PrintSortMode.PrintTargetOrder)
+        {
+            return SortByPrintTargetOrder(preset, entries, printTargetOrderColumnName);
+        }
 
         var sortField = sortMode switch
         {
             PrintSortMode.ItemCode => FindItemCodeField(preset),
             PrintSortMode.SelectedField => FindFieldById(preset, sortFieldId),
-            PrintSortMode.PrintTargetOrder => FindPrintTargetOrderField(preset),
             _ => null
         };
-        if (sortMode == PrintSortMode.PrintTargetOrder)
-        {
-            return SortByPrintTargetOrder(entries, sortField?.ColumnIndex);
-        }
-
         if (sortField?.ColumnIndex is not int sortColumnIndex) return entries;
 
         var effectiveSortValueType = sortMode == PrintSortMode.ItemCode ? PrintSortValueType.Natural : sortValueType;
@@ -138,10 +138,10 @@ public static class PrintableRowService
             .ThenBy(entry => entry.RowIndex)
             .ToList();
 
-    private static List<PrintableRowEntry> SortByPrintTargetOrder(List<PrintableRowEntry> entries, int? presetColumnIndex) =>
+    private static List<PrintableRowEntry> SortByPrintTargetOrder(PresetFile preset, List<PrintableRowEntry> entries, string printTargetOrderColumnName) =>
         entries
-            .OrderBy(entry => TryPrintTargetOrderValue(entry, presetColumnIndex, out var value) ? 0 : 1)
-            .ThenBy(entry => TryPrintTargetOrderValue(entry, presetColumnIndex, out var value) ? value : int.MaxValue)
+            .OrderBy(entry => TryPrintTargetOrderValue(preset, entry, printTargetOrderColumnName, out var value) ? 0 : 1)
+            .ThenBy(entry => TryPrintTargetOrderValue(preset, entry, printTargetOrderColumnName, out var value) ? value : int.MaxValue)
             .ThenBy(entry => CsvFileUtility.IsPrintQueueCsv(entry.File.FilePath))
             .ThenBy(entry => entry.FileIndex)
             .ThenBy(entry => entry.RowIndex)
@@ -180,43 +180,13 @@ public static class PrintableRowService
             && string.Equals(field.FieldId, fieldId, StringComparison.Ordinal));
     }
 
-    private static FieldDefinition? FindPrintTargetOrderField(PresetFile preset) =>
-        preset.Fields
-            .Where(field => field.Enabled && field.ColumnIndex is not null)
-            .FirstOrDefault(field => IsPrintTargetOrderName(field.DisplayName))
-        ?? preset.Fields
-            .Where(field => field.Enabled && field.ColumnIndex is not null)
-            .FirstOrDefault(field => IsPrintTargetOrderName(field.FieldId));
-
-    private static bool TryPrintTargetOrderValue(PrintableRowEntry entry, int? presetColumnIndex, out int value)
+    private static bool TryPrintTargetOrderValue(PresetFile preset, PrintableRowEntry entry, string printTargetOrderColumnName, out int value)
     {
         value = 0;
-        var columnIndex = PrintTargetOrderColumnIndex(entry.File, presetColumnIndex);
+        var columnIndex = PrintTargetOrderColumnResolver.FindColumnIndex(preset, entry.File, printTargetOrderColumnName);
         return columnIndex >= 0
             && columnIndex < entry.Row.Length
             && int.TryParse(entry.Row[columnIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static int PrintTargetOrderColumnIndex(CsvFileItem file, int? presetColumnIndex)
-    {
-        if (file.HeaderRow is { Length: > 0 } header)
-        {
-            for (var i = 0; i < header.Length; i++)
-            {
-                if (IsPrintTargetOrderName(header[i]))
-                {
-                    return i;
-                }
-            }
-        }
-
-        return presetColumnIndex ?? -1;
-    }
-
-    private static bool IsPrintTargetOrderName(string value)
-    {
-        var normalized = value.Replace(" ", "", StringComparison.Ordinal).Replace("_", "", StringComparison.Ordinal);
-        return string.Equals(normalized, "tagprintorder", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string CellValue(string[] row, int index)

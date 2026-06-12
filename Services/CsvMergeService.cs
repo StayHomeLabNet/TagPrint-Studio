@@ -12,7 +12,19 @@ public interface ICsvMergeService
 
 public sealed class CsvMergeService : ICsvMergeService
 {
-    private readonly ICsvLoaderService csvLoader = new CsvLoaderService();
+    private readonly ICsvLoaderService csvLoader;
+    private readonly Action<string> deleteFile;
+
+    public CsvMergeService()
+        : this(new CsvLoaderService(), DeleteFileToRecycleBin)
+    {
+    }
+
+    internal CsvMergeService(ICsvLoaderService csvLoader, Action<string> deleteFile)
+    {
+        this.csvLoader = csvLoader;
+        this.deleteFile = deleteFile;
+    }
 
     public CsvMergePreview Preview(CsvMergeOptions options, PresetFile preset)
     {
@@ -152,41 +164,65 @@ public sealed class CsvMergeService : ICsvMergeService
         }
 
         var backupPath = CsvBackupUtility.CreateTimestampedBackup(preview.ParentCsvPath);
+        List<CsvMergeSourceBackup> sourceBackups = preview.DeleteMergedSourceFiles
+            ? CreateSourceBackups(preview.AppendFilePaths)
+            : [];
 
-        foreach (var childPath in preview.AppendFilePaths)
-        {
-            parent.Rows.AddRange(files[childPath].Rows.Select(row => row.ToArray()));
-        }
-
-        CsvFileUtility.WriteCsvFile(parent, preview.HasHeaderRow, createBackup: false);
-
-        var deletedSourceFileCount = 0;
-        if (preview.DeleteMergedSourceFiles)
+        try
         {
             foreach (var childPath in preview.AppendFilePaths)
             {
-                if (!File.Exists(childPath))
-                {
-                    continue;
-                }
-
-                FileSystem.DeleteFile(
-                    childPath,
-                    UIOption.OnlyErrorDialogs,
-                    RecycleOption.SendToRecycleBin,
-                    UICancelOption.DoNothing);
-                deletedSourceFileCount++;
+                parent.Rows.AddRange(files[childPath].Rows.Select(row => row.ToArray()));
             }
+
+            CsvFileUtility.WriteCsvFile(parent, preview.HasHeaderRow, createBackup: false);
+        }
+        catch
+        {
+            RestoreFileFromBackup(backupPath, preview.ParentCsvPath);
+            RestoreSourceFiles(sourceBackups);
+            CleanupSourceBackups(sourceBackups);
+            throw;
+        }
+
+        var deletedSourceFileCount = 0;
+        try
+        {
+            if (preview.DeleteMergedSourceFiles)
+            {
+                foreach (var childPath in preview.AppendFilePaths)
+                {
+                    if (!File.Exists(childPath))
+                    {
+                        continue;
+                    }
+
+                    deleteFile(childPath);
+                    deletedSourceFileCount++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            RestoreFileFromBackup(backupPath, preview.ParentCsvPath);
+            RestoreSourceFiles(sourceBackups);
+            CleanupSourceBackups(sourceBackups);
+
+            throw new InvalidOperationException(
+                LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                    ? "親CSVへの追記後に、マージ済み子CSVの削除に失敗したため、親CSVをバックアップから復元しました。削除に失敗した子CSVを再マージすると重複する可能性があるため、ファイル状態を確認してください。"
+                    : "After appending rows to the parent CSV, deleting a merged child CSV failed, so the parent CSV was restored from backup. Check the file state before merging again because retrying with an undeleted child CSV could create duplicate rows.",
+                ex);
+        }
+        finally
+        {
+            CleanupSourceBackups(sourceBackups);
         }
 
         var deletedBakFileCount = 0;
         if (preview.DeleteBakFileAfterMerge && File.Exists(backupPath))
         {
-            FileSystem.DeleteFile(
-                backupPath,
-                UIOption.OnlyErrorDialogs,
-                RecycleOption.SendToRecycleBin,
-                UICancelOption.DoNothing);
+            deleteFile(backupPath);
             deletedBakFileCount = 1;
         }
 
@@ -201,6 +237,91 @@ public sealed class CsvMergeService : ICsvMergeService
         };
     }
 
+    private static void DeleteFileToRecycleBin(string path)
+    {
+        FileSystem.DeleteFile(
+            path,
+            UIOption.OnlyErrorDialogs,
+            RecycleOption.SendToRecycleBin,
+            UICancelOption.DoNothing);
+    }
+
+    private static List<CsvMergeSourceBackup> CreateSourceBackups(IEnumerable<string> sourcePaths)
+    {
+        var backupRoot = Path.Combine(Path.GetTempPath(), "TagPrintStudio", "CsvMerge", Guid.NewGuid().ToString("N"));
+        var backups = new List<CsvMergeSourceBackup>();
+
+        try
+        {
+            Directory.CreateDirectory(backupRoot);
+
+            foreach (var sourcePath in sourcePaths)
+            {
+                if (!File.Exists(sourcePath))
+                {
+                    continue;
+                }
+
+                var backupPath = Path.Combine(backupRoot, backups.Count.ToString("D4") + "_" + Path.GetFileName(sourcePath));
+                File.Copy(sourcePath, backupPath, overwrite: false);
+                backups.Add(new CsvMergeSourceBackup(sourcePath, backupPath));
+            }
+
+            return backups;
+        }
+        catch
+        {
+            CleanupSourceBackups(backups);
+            throw;
+        }
+    }
+
+    private static void RestoreFileFromBackup(string backupPath, string destinationPath)
+    {
+        if (File.Exists(backupPath))
+        {
+            File.Copy(backupPath, destinationPath, overwrite: true);
+        }
+    }
+
+    private static void RestoreSourceFiles(IEnumerable<CsvMergeSourceBackup> backups)
+    {
+        foreach (var backup in backups)
+        {
+            if (File.Exists(backup.BackupPath))
+            {
+                File.Copy(backup.BackupPath, backup.SourcePath, overwrite: true);
+            }
+        }
+    }
+
+    private static void CleanupSourceBackups(IEnumerable<CsvMergeSourceBackup> backups)
+    {
+        foreach (var backup in backups)
+        {
+            var directory = Path.GetDirectoryName(backup.BackupPath);
+
+            try
+            {
+                if (File.Exists(backup.BackupPath))
+                {
+                    File.Delete(backup.BackupPath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory) && Directory.GetFileSystemEntries(directory).Length == 0)
+                {
+                    Directory.Delete(directory);
+                }
+            }
+            catch
+            {
+                // Temporary transaction backups are best-effort cleanup only.
+            }
+        }
+    }
+
+    private sealed record CsvMergeSourceBackup(string SourcePath, string BackupPath);
+
     private static bool HeadersMatch(string[]? left, string[]? right)
     {
         if (left is null || right is null) return false;
@@ -209,7 +330,12 @@ public sealed class CsvMergeService : ICsvMergeService
 
     private static bool CanUseForMerge(CsvFileItem file)
     {
-        return file.Status != CsvFileStatus.LoadFailed && file.HeaderRow is { Length: > 0 };
+        if (file.Status == CsvFileStatus.LoadFailed || file.HeaderRow is not { Length: > 0 } header)
+        {
+            return false;
+        }
+
+        return file.Rows.All(row => CsvFileUtility.IsBlankRow(row) || row.Length == header.Length);
     }
 
     private static string MergeStatus(CsvFileItem file, bool isParent, CsvFileItem parent)

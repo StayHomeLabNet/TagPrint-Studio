@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Globalization;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 
@@ -6,7 +7,7 @@ namespace TagPrintStudio.Services;
 
 public interface IPreflightCheckService
 {
-    PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles);
+    PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "");
 }
 
 public sealed class PreflightCheckService : IPreflightCheckService
@@ -25,7 +26,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
     private const double RecommendedQrCodeSizeMm = 20.0;
     private const double RecommendedQrCodeSizeWithTextMm = 24.0;
 
-    public PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles)
+    public PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "")
     {
         var errors = new List<string>();
         var warnings = new List<string>();
@@ -41,12 +42,16 @@ public sealed class PreflightCheckService : IPreflightCheckService
             for (var rowIndex = 0; rowIndex < file.Rows.Count; rowIndex++)
             {
                 var row = file.Rows[rowIndex];
+                if (CsvFileUtility.IsBlankRow(row)) continue;
                 if (!PrintConditionService.MatchesAll(preset, row)) continue;
                 printableRowCount++;
 
-                errors.AddRange(CheckRequiredFields(preset, file, rowIndex, row));
-                errors.AddRange(CheckPriceFields(preset, file, rowIndex, row));
-                errors.AddRange(CheckBarcodeValues(layout, preset, file, rowIndex, row));
+                var csvRowNumber = CsvRowNumber(rowIndex, hasHeaderRow);
+
+                errors.AddRange(CheckRequiredFields(preset, file, csvRowNumber, row));
+                errors.AddRange(CheckPriceFields(preset, file, csvRowNumber, row));
+                errors.AddRange(CheckBarcodeValues(layout, preset, file, csvRowNumber, row));
+                warnings.AddRange(CheckPrintTargetOrder(preset, file, csvRowNumber, row, printSortMode, printTargetOrderColumnName));
             }
         }
 
@@ -62,6 +67,8 @@ public sealed class PreflightCheckService : IPreflightCheckService
             Warnings = warnings
         };
     }
+
+    private static int CsvRowNumber(int rowIndex, bool hasHeaderRow) => rowIndex + (hasHeaderRow ? 2 : 1);
 
     private static IEnumerable<string> CheckLayoutBounds(LayoutFile layout)
     {
@@ -183,7 +190,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
             element.BarcodeShowText ? RecommendedCode128BarcodeHeightWithTextMm : RecommendedCode128BarcodeHeightMm);
     }
 
-    private static IEnumerable<string> CheckBarcodeValues(LayoutFile layout, PresetFile preset, CsvFileItem file, int rowIndex, string[] row)
+    private static IEnumerable<string> CheckBarcodeValues(LayoutFile layout, PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
     {
         foreach (var element in layout.Elements.Where(element => element.Visible && element.ElementType == LayoutElementType.Barcode))
         {
@@ -191,7 +198,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
             var value = BarcodeValue(element, preset, row);
             if (string.IsNullOrWhiteSpace(value))
             {
-                yield return LocalizationService.T("preflight.issue.barcodeEmpty", file.FileName, rowIndex + 1, label);
+                yield return LocalizationService.T("preflight.issue.barcodeEmpty", file.FileName, csvRowNumber, label);
                 continue;
             }
 
@@ -203,24 +210,41 @@ public sealed class PreflightCheckService : IPreflightCheckService
             {
                 if (!TryNormalizeEan13(value, out _, out _))
                 {
-                    yield return LocalizationService.T("preflight.issue.barcodeEanInvalid", file.FileName, rowIndex + 1, label);
+                    yield return LocalizationService.T("preflight.issue.barcodeEanInvalid", file.FileName, csvRowNumber, label);
                 }
             }
             else if (string.Equals(element.BarcodeType, "Code128", StringComparison.OrdinalIgnoreCase))
             {
                 if (!IsCode128BCompatible(value))
                 {
-                    yield return LocalizationService.T("preflight.issue.barcodeInvalid", file.FileName, rowIndex + 1, label);
+                    yield return LocalizationService.T("preflight.issue.barcodeInvalid", file.FileName, csvRowNumber, label);
                 }
             }
             else
             {
-                yield return LocalizationService.T("preflight.issue.barcodeUnsupportedType", file.FileName, rowIndex + 1, label, element.BarcodeType);
+                yield return LocalizationService.T("preflight.issue.barcodeUnsupportedType", file.FileName, csvRowNumber, label, element.BarcodeType);
             }
         }
     }
 
-    private static IEnumerable<string> CheckRequiredFields(PresetFile preset, CsvFileItem file, int rowIndex, string[] row)
+
+    private static IEnumerable<string> CheckPrintTargetOrder(PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row, PrintSortMode printSortMode, string printTargetOrderColumnName)
+    {
+        if (printSortMode != PrintSortMode.PrintTargetOrder) yield break;
+
+        var orderColumnIndex = PrintTargetOrderColumnResolver.FindColumnIndex(preset, file, printTargetOrderColumnName);
+        if (orderColumnIndex < 0 || orderColumnIndex >= row.Length || !TryParsePrintTargetOrder(row[orderColumnIndex]))
+        {
+            yield return LocalizationService.T("preflight.issue.printTargetOrderMissing", file.FileName, csvRowNumber);
+        }
+    }
+
+    private static bool TryParsePrintTargetOrder(string? value)
+    {
+        return int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+    }
+
+    private static IEnumerable<string> CheckRequiredFields(PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
     {
         foreach (var field in preset.Fields.Where(field => field.Enabled && field.Required))
         {
@@ -228,11 +252,11 @@ public sealed class PreflightCheckService : IPreflightCheckService
             if (!string.IsNullOrWhiteSpace(value)) continue;
 
             var label = string.IsNullOrWhiteSpace(field.DisplayName) ? field.FieldId : field.DisplayName;
-            yield return LocalizationService.T("preflight.issue.requiredEmpty", file.FileName, rowIndex + 1, label);
+            yield return LocalizationService.T("preflight.issue.requiredEmpty", file.FileName, csvRowNumber, label);
         }
     }
 
-    private static IEnumerable<string> CheckPriceFields(PresetFile preset, CsvFileItem file, int rowIndex, string[] row)
+    private static IEnumerable<string> CheckPriceFields(PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
     {
         foreach (var field in preset.Fields.Where(field => field.Enabled && IsPriceField(field)))
         {
@@ -240,7 +264,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
             if (!string.IsNullOrWhiteSpace(value)) continue;
 
             var label = string.IsNullOrWhiteSpace(field.DisplayName) ? field.FieldId : field.DisplayName;
-            yield return LocalizationService.T("preflight.issue.priceEmpty", file.FileName, rowIndex + 1, label);
+            yield return LocalizationService.T("preflight.issue.priceEmpty", file.FileName, csvRowNumber, label);
         }
     }
 

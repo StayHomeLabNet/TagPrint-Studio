@@ -1,10 +1,35 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.0.7** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.0.8** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV-based field mapping, layout editing, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, and backup cleanup.
+It supports CSV-based field mapping, layout editing, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## What's New in v1.0.8
+
+- Improved output safety for PDF/PNG export.
+  - Existing output files are no longer left vulnerable during cancel/failure paths.
+  - Output is written to unique `.partial-*` files first.
+  - If an existing output file must be replaced, it is temporarily backed up and restored if the operation is canceled or fails.
+  - On cancellation, only files newly created by the canceled operation are removed.
+- Improved CSV loading fidelity.
+  - Blank physical CSV rows are preserved instead of being silently removed.
+  - Blank rows are kept when saving CSV data back to disk, but they are not treated as printable rows.
+  - Blank rows are excluded from column-count mismatch checks so intentional spacing in source CSV files does not cause false errors.
+- Improved CSV detection.
+  - Delimiter detection now checks up to the first 20 records instead of relying only on the first record.
+  - Comma, tab, and semicolon candidates are scored by consistency, usage count, and priority.
+  - Delimiters inside quoted values are ignored during detection.
+  - UTF-16 LE and UTF-16 BE BOM encoded CSV files are now detected in addition to UTF-8 BOM, valid UTF-8, and Shift_JIS fallback.
+- Improved settings and crash resilience.
+  - Settings backup ZIP creation now writes to a temporary file first, then replaces the final ZIP only after successful creation.
+  - Existing backup ZIP files are no longer deleted before the new ZIP has been completed.
+  - App-level unhandled exception handlers now show an error message and save crash logs under the app data `logs` folder.
+- Improved maintainability and deployment.
+  - Remaining direct two-language UI strings in cleanup dialogs were moved to shared localization resources.
+  - The application and test projects now target `.NET 8.0 Windows` for LTS-friendly development, CI, and distribution.
+- Updated README files, release notes, and English/Japanese manuals for v1.0.8.
 
 ## What's New in v1.0.7
 
@@ -33,50 +58,23 @@ It supports CSV-based field mapping, layout editing, PDF/PNG output, direct prin
 ## What's New in v1.0.5
 
 - Unified CSV backup naming across CSV column add, Tag Finder CSV save, Layout Designer CSV preview save, duplicate cleanup, and CSV merge.
-  - CSV backups now use timestamped names such as `products.csv.bak-20260608-142530`.
-  - Backup Cleanup can now manage those backup files consistently.
 - Added **Backup File Cleanup** under the Settings menu.
-  - Preview old or excess `*.csv.bak-*` files.
-  - Clean them up by retention days and maximum backup count per CSV.
-  - Moves deleted backups to the Recycle Bin.
-- Improved Tag Finder workflows.
-  - Added **Open in Layout Designer** from the small tag preview.
-  - When **Show true only** is active, queue creation now targets the active row instead of every checked row in the list.
-  - Save and queue actions reset print quantity back to `1`.
-  - Closing Tag Finder now checks for unused queue CSV files and offers cleanup.
+- Improved Tag Finder queue and small-preview workflows.
 - Improved CSV merge preview stability.
-  - Preview no longer fails just because another CSV in the same folder has a different column count.
-  - Merge eligibility is now based on whether the file can be loaded and whether its header matches the selected parent CSV.
 - Updated version metadata to v1.0.5.
-- Rebuilt README files, release notes, and English/Japanese manuals for the current behavior.
 
 ## What's New in v1.0.4
 
-- Added progress dialogs for direct print, PDF export, and PNG export.
-- Added cancel support for long-running PDF/PNG output and direct print.
-- PDF/PNG output now writes through `.partial` files and removes incomplete output when canceled.
-- Direct print now renders one page at a time and reports page-level rendering failures with page numbers.
-- Added **Add CSV Column** to append a new column to every loaded CSV file, including headers, with CSV backups.
-- Layout text elements can now use a CSV field as the font-size source for row-specific tag text sizing.
-- Added configurable large print warnings from the Settings menu, including the current threshold in the menu label.
-- Added service tests for lazy page generation, page sorting behavior, empty output, and canceled PNG cleanup.
+- Added progress dialogs and cancel support for direct print, PDF export, and PNG export.
+- Added **Add CSV Column** to append a new column to every loaded CSV file.
+- Added row-specific CSV-driven font-size support for layout text elements.
+- Added configurable large print warnings from the Settings menu.
 
 ## What's New in v1.0.3
 
-- Added a print target confirmation dialog before output.
-  - Shows CSV names, row counts, tag counts, pages, and print order.
-  - Allows searching the ordered print list and jumping to the matching row.
-  - Can be enabled or disabled from the Settings menu.
-- Improved Tag Finder for practical print preparation.
-  - Added a small tag preview panel with a persistent preview on/off option.
-  - Added print quantity handling.
-  - When quantity is 2 or more, an additional `print_queue_yyyyMMdd_HHmmss.csv` is created in the parent CSV folder.
-  - Queue CSV rows are generated as `quantity - 1`, so the original selected row plus queue rows match the requested total.
-  - Queue CSV files can be deleted from Tag Finder or from the main CSV list context menu.
-- Added and refined print ordering.
-  - Supports load order, Item Code order, and selected-column order.
-- Refactored print target summary and Tag Finder search/update logic into services.
-- Rebuilt README, release notes, and manuals for the current feature set.
+- Added an optional print target confirmation dialog before output.
+- Added Tag Finder small preview, print quantity, and print queue CSV creation.
+- Added print ordering by load order, Item Code, or selected column.
 
 ## Screenshots
 
@@ -88,6 +86,8 @@ It supports CSV-based field mapping, layout editing, PDF/PNG output, direct prin
 
 ![CSV Duplicate Cleanup](docs/images/csv_cleanup.png)
 
+![CSV Merge](docs/images/csv_merge.png)
+
 ## Main Features
 
 ### CSV Import and Field Mapping
@@ -96,12 +96,14 @@ It supports CSV-based field mapping, layout editing, PDF/PNG output, direct prin
 - Load every CSV in a selected folder.
 - Reopen recently used CSV files.
 - Configure startup CSV and startup folder.
-- Detect and preserve common encodings such as UTF-8 BOM and Shift_JIS.
 - Treat the first row as a header.
 - Automatically create field definitions from CSV headers.
 - Add a new CSV column to every loaded CSV file from the CSV Fields area.
 - Configure required fields, print conditions, value types, operators, and values.
 - Use `Ctrl + ;` to insert today's date when editing date values in the CSV field table.
+- Preserve blank physical CSV rows while excluding them from printing and column-count mismatch checks.
+- Detect UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS fallback.
+- Detect comma, tab, or semicolon delimiters from multiple leading records while ignoring quoted delimiters.
 
 ### Presets and Layouts
 
@@ -146,10 +148,10 @@ QR Code generation uses the `QRCoder` NuGet package.
 - Previous/Next moves by page in page preview and by tag in single-tag preview.
 - Output all printable rows into one PDF.
 - Output separate PDF files per CSV.
-- Output individual PNG files per row.
+- Output PNG files per page or per row.
 - Direct print.
 - Progress and cancel dialogs for long-running output.
-- Atomic PDF/PNG writes through `.partial` files with cleanup on cancellation.
+- Safer PDF/PNG output transactions using unique `.partial-*` files, temporary backups for overwritten existing files, restore-on-failure, and cleanup of only newly created canceled output.
 - Actual-size printing or fit-to-printable-area scaling.
 - Printer-specific X/Y correction in millimeters.
 - Print order: load order, Item Code order, or selected-column order.
@@ -188,7 +190,7 @@ QR Code generation uses the `QRCoder` NuGet package.
 - Optionally move merged source CSVs and generated `.bak` files to the Recycle Bin.
 - Merge preview ignores queue CSV files and stays usable even when other CSV files in the folder have different column counts.
 
-### Settings
+### Settings and Safety
 
 - Japanese/English UI language.
 - Change, open, or reset the app data storage location.
@@ -196,10 +198,12 @@ QR Code generation uses the `QRCoder` NuGet package.
 - Recent CSV and recent output folders.
 - Last used preset, layout, output folder, DPI, output format, print mode, and related output settings.
 - Settings backup ZIP containing `layouts`, `presets`, `recent`, and `settings`.
+- Atomic settings backup creation through a temporary ZIP before final replacement.
 - Settings import from backup ZIP.
 - Backup file cleanup for timestamped CSV backups, with retention-based preview and Recycle Bin cleanup.
 - Open settings file location.
 - Toggle print target confirmation.
+- Crash logs under the app data `logs` folder for unexpected application errors.
 
 ## Sample CSV
 
@@ -207,6 +211,13 @@ Sample data is available under:
 
 ```text
 samples/
+```
+
+Included sample assets:
+
+```text
+samples/sample-price-tags.csv
+samples/sample-frame.png
 ```
 
 ## Documentation
@@ -239,6 +250,12 @@ UI/MainForm*.cs
 UI/LayoutDesignerForm*.cs
 UI/TagFinderDialog.cs
 UI/CsvDuplicateCleanupDialog.cs
+UI/CsvMergeDialog.cs
+UI/BackupCleanupDialog.cs
+Services/CsvLoaderService.cs
+Services/OutputService.cs
+Services/SettingsArchiveService.cs
+Services/CrashLogService.cs
 Services/PreviewRenderService*.cs
 Services/PreflightCheckService.cs
 Services/PresetLayoutServices.cs
@@ -252,7 +269,7 @@ Services/LocalizationResources*.cs
 Requirements:
 
 - Windows
-- .NET 10 SDK
+- .NET 8 SDK (LTS) or newer SDK with the .NET 8 targeting pack
 - Windows Forms support
 
 Restore and build:
@@ -277,7 +294,7 @@ dotnet publish "TagPrintStudio.csproj" -c Release -r win-x64 --self-contained tr
 The published executable is generated under:
 
 ```text
-bin/Release/net10.0-windows/win-x64/publish/
+bin/Release/net8.0-windows/win-x64/publish/
 ```
 
 ## NuGet Packages
@@ -288,4 +305,4 @@ bin/Release/net10.0-windows/win-x64/publish/
 
 ## Version
 
-Current version: **v1.0.7**
+Current version: **v1.0.8**

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
@@ -20,12 +20,12 @@ internal sealed partial class DuplicateCleanupDialog : Form
         valueTypeCombo = Combo();
         ruleCombo = Combo();
         carryModeCombo = Combo();
-        ignoreEmptyKeysCheck = TopCheckBox(L("空キーを無視", "Ignore empty keys"), isChecked: true, width: 130);
-        carryValuesCheck = TopCheckBox(L("元の値を引き継ぐ", "Carry values"), width: 140);
+        ignoreEmptyKeysCheck = TopCheckBox(LocalizationService.T("duplicateCleanup.ignoreEmptyKeys"), isChecked: true, width: 130);
+        carryValuesCheck = TopCheckBox(LocalizationService.T("duplicateCleanup.carryValues"), width: 140);
         carryValuesCheck.CheckedChanged += (_, _) => UpdateCarryControls();
         carryValuesCheck.Checked = settings.DuplicateCarryValuesEnabled;
         carryValuesCheck.CheckedChanged += (_, _) => settings.DuplicateCarryValuesEnabled = carryValuesCheck.Checked;
-        selectCarryFieldsButton = Button(L("列を選択", "Select Fields"), (_, _) => SelectCarryFields());
+        selectCarryFieldsButton = Button(LocalizationService.T("duplicateCleanup.selectFields"), (_, _) => SelectCarryFields());
         carryFieldsSummaryLabel = new Label
         {
             Width = 360,
@@ -35,7 +35,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
             ForeColor = Color.FromArgb(75, 85, 99),
             Margin = new Padding(4, 2, 0, 2)
         };
-        var detectButton = Button(L("検出", "Detect"), async (_, _) => await DetectDuplicatesAsync(), primary: true);
+        var detectButton = Button(LocalizationService.T("duplicateCleanup.detect"), async (_, _) => await DetectDuplicatesAsync(), primary: true);
 
         keyFieldCombo.Items.AddRange(fields.Select(FieldItemFromField).Cast<object>().ToArray());
         compareFieldCombo.Items.AddRange(fields.Select(FieldItemFromField).Cast<object>().ToArray());
@@ -61,10 +61,10 @@ internal sealed partial class DuplicateCleanupDialog : Form
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         var duplicateConditionRow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = Padding.Empty };
-        duplicateConditionRow.Controls.Add(FieldGroup(L("キー列", "Key Column"), keyFieldCombo, 270));
-        duplicateConditionRow.Controls.Add(FieldGroup(L("判定列", "Compare Column"), compareFieldCombo, 280));
-        duplicateConditionRow.Controls.Add(FieldGroup(L("判定型", "Value Type"), valueTypeCombo, 180));
-        duplicateConditionRow.Controls.Add(FieldGroup(L("ルール", "Rule"), ruleCombo, 300));
+        duplicateConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.keyColumn"), keyFieldCombo, 270));
+        duplicateConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.compareColumn"), compareFieldCombo, 280));
+        duplicateConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.valueType"), valueTypeCombo, 180));
+        duplicateConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.rule"), ruleCombo, 300));
         duplicateConditionRow.Controls.Add(ignoreEmptyKeysCheck);
         duplicateConditionRow.Controls.Add(detectButton);
         duplicateConditionRow.Controls[2].Width -= 50;
@@ -72,9 +72,9 @@ internal sealed partial class DuplicateCleanupDialog : Form
         top.Controls.Add(duplicateConditionRow, 0, 0);
 
         var carryConditionRow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = Padding.Empty };
-        carryConditionRow.Controls.Add(FieldGroup(L("引き継ぎ", "Carry"), carryValuesCheck, 250));
-        carryConditionRow.Controls.Add(FieldGroup(L("対象列", "Fields"), selectCarryFieldsButton, 200));
-        carryConditionRow.Controls.Add(FieldGroup(L("コピー条件", "Copy Mode"), carryModeCombo, 310));
+        carryConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.carry"), carryValuesCheck, 250));
+        carryConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.fields"), selectCarryFieldsButton, 200));
+        carryConditionRow.Controls.Add(FieldGroup(LocalizationService.T("duplicateCleanup.copyMode"), carryModeCombo, 310));
         carryConditionRow.Controls.Add(carryFieldsSummaryLabel);
         SetFieldGroupLabelWidth(carryConditionRow.Controls[0], 76);
         SetFieldGroupLabelWidth(carryConditionRow.Controls[2], 76);
@@ -94,13 +94,13 @@ internal sealed partial class DuplicateCleanupDialog : Form
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AllowUserToResizeRows = false
         };
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.DisplayKeyValue), L("キー", "Key"), 180));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.DisplayKeyValue), LocalizationService.T("duplicateCleanup.key"), 180));
         duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.FileName), "CSV", 180));
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.DisplayRowNumber), L("行", "Row"), 60));
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.CompareValue), L("判定値", "Compare"), 170));
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.CarrySummary), L("引き継ぎ", "Carry"), 150));
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.ActionText), L("操作", "Action"), 90));
-        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.Reason), L("理由", "Reason"), 250));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.DisplayRowNumber), LocalizationService.T("duplicateCleanup.row"), 60));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.CompareValue), LocalizationService.T("duplicateCleanup.compare"), 170));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.CarrySummary), LocalizationService.T("duplicateCleanup.carry"), 150));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.ActionText), LocalizationService.T("duplicateCleanup.action"), 90));
+        duplicateGrid.Columns.Add(TextColumn(nameof(DuplicateResolutionItem.Reason), LocalizationService.T("duplicateCleanup.reason"), 250));
         duplicateGrid.ColumnHeaderMouseClick += DuplicateGrid_ColumnHeaderMouseClick;
         duplicateGrid.DataBindingComplete += (_, _) => ApplyDuplicateRowStyles();
         root.Controls.Add(duplicateGrid, 0, 1);
@@ -111,7 +111,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
         bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         duplicateSummaryLabel = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(75, 85, 99) };
         UpdateDuplicateSummary(null);
-        var applyButton = Button(L("適用", "Apply"), async (_, _) => await ApplyDuplicateCleanupAsync(), primary: true);
+        var applyButton = Button(LocalizationService.T("duplicateCleanup.apply"), async (_, _) => await ApplyDuplicateCleanupAsync(), primary: true);
         var closeButton = Button(LocalizationService.T("common.close"), (_, _) => CloseDialog());
         bottom.Controls.Add(duplicateSummaryLabel, 0, 0);
         bottom.Controls.Add(applyButton, 1, 0);
@@ -156,7 +156,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
         if (lastDuplicateResult is null || lastDuplicateResult.DeleteCount == 0)
         {
             MessageBox.Show(
-                L("削除対象がありません。先に検出を実行してください。", "No delete candidates. Run detection first."),
+                LocalizationService.T("duplicateCleanup.noDeleteCandidatesRunDetectionFirst"),
                 LocalizationService.T("common.appTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -164,17 +164,17 @@ internal sealed partial class DuplicateCleanupDialog : Form
         }
 
         var message = string.Format(
-            L("{0}件のCSVを更新し、{1}行を削除します。", "Update {0} CSV file(s) and delete {1} row(s)."),
+            LocalizationService.T("duplicateCleanup.update0CsvFileSAndDelete1RowS"),
             lastDuplicateResult.TargetFileCount,
             lastDuplicateResult.DeleteCount);
         if (lastDuplicateResult.CarryCellCount > 0)
         {
             message += Environment.NewLine + string.Format(
-                L("あわせて {0} セルを残す側へコピーします。", "Also copy {0} cell(s) into kept rows."),
+                LocalizationService.T("duplicateCleanup.alsoCopy0CellSIntoKeptRows"),
                 lastDuplicateResult.CarryCellCount);
         }
 
-        message += Environment.NewLine + Environment.NewLine + L("続行しますか？", "Continue?");
+        message += Environment.NewLine + Environment.NewLine + LocalizationService.T("duplicateCleanup.continue");
         if (MessageBox.Show(message, LocalizationService.T("common.confirm"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
         {
             return;
@@ -209,7 +209,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
     {
         var keyFieldId = (keyFieldCombo.SelectedItem as FieldItem)?.FieldId ?? "";
         var selectableFields = fields.Where(field => !string.Equals(field.FieldId, keyFieldId, StringComparison.Ordinal)).ToList();
-        using var dialog = new MultiFieldSelectionDialog(selectableFields, selectedCarryFieldIds, L("引き継ぎ列", "Carry Fields"));
+        using var dialog = new MultiFieldSelectionDialog(selectableFields, selectedCarryFieldIds, LocalizationService.T("duplicateCleanup.carryFields"));
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
@@ -231,14 +231,14 @@ internal sealed partial class DuplicateCleanupDialog : Form
             return;
         }
 
-        carryFieldsSummaryLabel.Text = enabled ? BuildCarryFieldSummary() : L("無効", "Disabled");
+        carryFieldsSummaryLabel.Text = enabled ? BuildCarryFieldSummary() : LocalizationService.T("duplicateCleanup.disabled");
     }
 
     private string BuildCarryFieldSummary()
     {
         if (selectedCarryFieldIds.Count == 0)
         {
-            return L("未選択", "None selected");
+            return LocalizationService.T("duplicateCleanup.noneSelected");
         }
 
         var selectedNames = fields
@@ -251,10 +251,9 @@ internal sealed partial class DuplicateCleanupDialog : Form
     private void UpdateDuplicateSummary(DuplicateCleanupResult? result)
     {
         duplicateSummaryLabel.Text = result is null
-            ? L("重複検出を実行してください。", "Run duplicate detection.")
+            ? LocalizationService.T("duplicateCleanup.runDuplicateDetection")
             : string.Format(
-                L("重複グループ: {0}  削除候補: {1}  コピー予定セル: {2}  更新CSV: {3}",
-                    "Groups: {0}  Delete: {1}  Carry Cells: {2}  Files: {3}"),
+                LocalizationService.T("duplicateCleanup.groups0Delete1CarryCells2Files3"),
                 result.GroupCount,
                 result.DeleteCount,
                 result.CarryCellCount,
@@ -431,15 +430,15 @@ internal sealed partial class DuplicateCleanupDialog : Form
 
     private List<OptionItem<DuplicateValueType>> ValueTypeItems() =>
     [
-        new() { Value = DuplicateValueType.Date, DisplayName = L("日付", "Date") },
-        new() { Value = DuplicateValueType.Number, DisplayName = L("数値", "Number") },
-        new() { Value = DuplicateValueType.Text, DisplayName = L("文字列", "Text") }
+        new() { Value = DuplicateValueType.Date, DisplayName = LocalizationService.T("duplicateCleanup.date") },
+        new() { Value = DuplicateValueType.Number, DisplayName = LocalizationService.T("duplicateCleanup.number") },
+        new() { Value = DuplicateValueType.Text, DisplayName = LocalizationService.T("duplicateCleanup.text") }
     ];
 
     private List<OptionItem<DuplicateCopyMode>> CarryModeItems() =>
     [
-        new() { Value = DuplicateCopyMode.FillIfEmpty, DisplayName = L("残す側が空ならコピー", "Copy if keep row is empty") },
-        new() { Value = DuplicateCopyMode.Overwrite, DisplayName = L("上書きする", "Overwrite keep row") }
+        new() { Value = DuplicateCopyMode.FillIfEmpty, DisplayName = LocalizationService.T("duplicateCleanup.copyIfKeepRowIsEmpty") },
+        new() { Value = DuplicateCopyMode.Overwrite, DisplayName = LocalizationService.T("duplicateCleanup.overwriteKeepRow") }
     ];
 
     private void RefreshRuleItems()
@@ -495,20 +494,23 @@ internal sealed partial class DuplicateCleanupDialog : Form
     {
         DuplicateValueType.Date =>
         [
-            new() { Value = DuplicateResolutionRule.KeepLargest, DisplayName = L("新しい日付を残す", "Keep Newer Date") },
-            new() { Value = DuplicateResolutionRule.KeepSmallest, DisplayName = L("古い日付を残す", "Keep Older Date") },
-            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = L("先に見つかった行を残す", "Keep First Found Row") }
+            new() { Value = DuplicateResolutionRule.KeepLargest, DisplayName = LocalizationService.T("duplicateCleanup.keepNewerDate") },
+            new() { Value = DuplicateResolutionRule.KeepSmallest, DisplayName = LocalizationService.T("duplicateCleanup.keepOlderDate") },
+            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = LocalizationService.T("duplicateCleanup.keepFirstFoundRow") },
+            new() { Value = DuplicateResolutionRule.KeepLast, DisplayName = LocalizationService.T("duplicateCleanup.keepLastFoundRow") }
         ],
         DuplicateValueType.Number =>
         [
-            new() { Value = DuplicateResolutionRule.KeepLargest, DisplayName = L("大きい値を残す", "Keep Larger Value") },
-            new() { Value = DuplicateResolutionRule.KeepSmallest, DisplayName = L("小さい値を残す", "Keep Smaller Value") },
-            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = L("先に見つかった行を残す", "Keep First Found Row") }
+            new() { Value = DuplicateResolutionRule.KeepLargest, DisplayName = LocalizationService.T("duplicateCleanup.keepLargerValue") },
+            new() { Value = DuplicateResolutionRule.KeepSmallest, DisplayName = LocalizationService.T("duplicateCleanup.keepSmallerValue") },
+            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = LocalizationService.T("duplicateCleanup.keepFirstFoundRow") },
+            new() { Value = DuplicateResolutionRule.KeepLast, DisplayName = LocalizationService.T("duplicateCleanup.keepLastFoundRow") }
         ],
         _ =>
         [
-            new() { Value = DuplicateResolutionRule.KeepNonEmpty, DisplayName = L("空でない値を残す", "Keep Non-Empty") },
-            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = L("先に見つかった行を残す", "Keep First Found Row") }
+            new() { Value = DuplicateResolutionRule.KeepNonEmpty, DisplayName = LocalizationService.T("duplicateCleanup.keepNonEmpty") },
+            new() { Value = DuplicateResolutionRule.KeepFirst, DisplayName = LocalizationService.T("duplicateCleanup.keepFirstFoundRow") },
+            new() { Value = DuplicateResolutionRule.KeepLast, DisplayName = LocalizationService.T("duplicateCleanup.keepLastFoundRow") }
         ]
     };
 

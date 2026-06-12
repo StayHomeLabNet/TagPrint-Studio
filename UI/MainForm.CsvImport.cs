@@ -1,4 +1,4 @@
-﻿using TagPrintStudio.Enums;
+using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
 using Microsoft.VisualBasic.FileIO;
@@ -24,9 +24,9 @@ public sealed partial class MainForm
 
         const int csvToolHeight = 30;
         var selectCsvButton = Button("main.button.selectCsv", (_, _) => SelectCsvFiles(), primary: true);
-        var selectFolderButton = Button("フォルダー選択", (_, _) => SelectCsvFolder());
-        duplicateCleanupButton = Button("重複整理", (_, _) => OpenDuplicateCleanup());
-        tagFinderButton = Button("タグ検索", (_, _) => OpenTagFinder());
+        var selectFolderButton = Button("main.button.selectFolder", (_, _) => SelectCsvFolder());
+        duplicateCleanupButton = Button("duplicateCleanup.duplicateCleanup", (_, _) => OpenDuplicateCleanup());
+        tagFinderButton = Button("main.button.tagFinder", (_, _) => OpenTagFinder());
         MatchToolbarHeight(selectCsvButton, csvToolHeight);
         MatchToolbarHeight(selectFolderButton, csvToolHeight);
         MatchToolbarHeight(duplicateCleanupButton, csvToolHeight);
@@ -212,6 +212,12 @@ public sealed partial class MainForm
 
     private void OpenTagFinder()
     {
+        if (!headerCheck.Checked)
+        {
+            MessageBox.Show(LocalizationService.T("main.message.tagFinderRequiresHeader"), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         if (csvRows.All(row => row.Status != CsvFileStatus.Ok))
         {
             MessageBox.Show(LocalizationService.T("main.message.noValidCsv"), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -219,8 +225,17 @@ public sealed partial class MainForm
         }
 
         currentPreset.Fields = fieldRows.ToList();
-        using var dialog = new TagFinderDialog(fieldRows.ToList(), csvRows.ToList(), currentLayout, headerCheck.Checked, settings, SaveCurrentSettings, LoadQueueCsvFolder);
+        using var dialog = new TagFinderDialog(
+            fieldRows.ToList(),
+            csvRows.ToList(),
+            currentLayout,
+            headerCheck.Checked,
+            settings,
+            SaveCurrentSettings,
+            LoadQueueCsvFolder,
+            CurrentPrintTargetOrderColumnName());
         dialog.ShowDialog(this);
+        UpdatePresetPrintTargetOrderColumnName(dialog.SelectedOrderColumnName);
         if (dialog.LayoutDesignerPreviewRows is { Count: > 0 } previewRows)
         {
             OpenLayoutDesigner(previewRows, dialog.LayoutDesignerInitialPreviewIndex);
@@ -235,24 +250,28 @@ public sealed partial class MainForm
 
     private void LoadQueueCsvFolder(string queueCsvPath)
     {
-        if (string.IsNullOrWhiteSpace(queueCsvPath)) return;
+        var paths = ResolveQueueCsvLoadPaths(queueCsvPath, out var append);
+        if (paths.Count == 0) return;
+
+        LoadCsvPaths(paths, append);
+    }
+
+    internal static IReadOnlyList<string> ResolveQueueCsvLoadPaths(string queueCsvPath, out bool append)
+    {
+        append = false;
+        if (string.IsNullOrWhiteSpace(queueCsvPath)) return [];
 
         if (Directory.Exists(queueCsvPath))
         {
-            LoadCsvPaths(Directory.GetFiles(queueCsvPath, "*.csv").OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase));
-            return;
+            return Directory.GetFiles(queueCsvPath, "*.csv")
+                .OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
         }
 
-        if (!File.Exists(queueCsvPath)) return;
+        if (!File.Exists(queueCsvPath)) return [];
 
-        var queueFolder = Path.GetDirectoryName(queueCsvPath);
-        if (!string.IsNullOrWhiteSpace(queueFolder) && Directory.Exists(queueFolder))
-        {
-            LoadCsvPaths(Directory.GetFiles(queueFolder, "*.csv").OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase));
-            return;
-        }
-
-        LoadCsvPaths([queueCsvPath]);
+        append = true;
+        return [queueCsvPath];
     }
 
     private void OpenRecentCsvSelection()

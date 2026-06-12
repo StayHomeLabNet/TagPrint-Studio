@@ -46,4 +46,105 @@ public sealed partial class ServiceTests
         Assert.Throws<InvalidOperationException>(() =>
             new CsvColumnService().AddColumnToAllFiles(files, "name", hasHeaderRow: true));
     }
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_RejectsDifferentHeaderColumnCounts()
+    {
+        using var temp = new TempDirectory();
+        var firstPath = temp.WriteText("first.csv", "Code,Name\r\nA100,Apple\r\n", Encoding.UTF8);
+        var secondPath = temp.WriteText("second.csv", "Code,Name,Price\r\nB200,Banana,120\r\n", Encoding.UTF8);
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(firstPath, ["Code", "Name"], ["A100", "Apple"]),
+            CsvFile(secondPath, ["Code", "Name", "Price"], ["B200", "Banana", "120"])
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
+
+        Assert.Contains("different header column counts", exception.Message);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
+        Assert.Equal(["Code", "Name", "Price"], files[1].HeaderRow);
+        Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
+        Assert.DoesNotContain("FontSize", File.ReadAllText(secondPath, Encoding.UTF8));
+    }
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_RejectsColumnMismatchFiles()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Code,Name\r\nA100\r\n", Encoding.UTF8);
+        var file = CsvFile(path, ["Code", "Name"], ["A100"]);
+        file.Status = TagPrintStudio.Enums.CsvFileStatus.ColumnMismatch;
+        var files = new List<CsvFileItem> { file };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
+
+        Assert.Contains("different column counts", exception.Message);
+        Assert.Equal(["Code", "Name"], file.HeaderRow);
+        Assert.DoesNotContain("FontSize", File.ReadAllText(path, Encoding.UTF8));
+    }
+
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_RejectsDifferentHeaderNames()
+    {
+        using var temp = new TempDirectory();
+        var firstPath = temp.WriteText("first.csv", "Code,Name\r\nA100,Apple\r\n", Encoding.UTF8);
+        var secondPath = temp.WriteText("second.csv", "ItemCode,Stock\r\nB200,5\r\n", Encoding.UTF8);
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(firstPath, ["Code", "Name"], ["A100", "Apple"]),
+            CsvFile(secondPath, ["ItemCode", "Stock"], ["B200", "5"])
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
+
+        Assert.Contains("different header names", exception.Message);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
+        Assert.Equal(["ItemCode", "Stock"], files[1].HeaderRow);
+        Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
+        Assert.DoesNotContain("FontSize", File.ReadAllText(secondPath, Encoding.UTF8));
+    }
+
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_RollsBackWrittenCsvAndKeepsMemoryUnchangedWhenLaterCsvFails()
+    {
+        using var temp = new TempDirectory();
+        var firstPath = temp.WriteText("first.csv", "Code,Name\r\nA100,Apple\r\n", Encoding.UTF8);
+        var secondPath = temp.WriteText("second.csv", "Code,Name\r\nB200,Banana\r\n", Encoding.UTF8);
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(firstPath, ["Code", "Name"], ["A100", "Apple"]),
+            CsvFile(secondPath, ["Code", "Name"], ["B200", "Banana"])
+        };
+        var service = new CsvColumnService(
+            CsvBackupUtility.CreateTimestampedBackup,
+            (file, hasHeaderRow) =>
+            {
+                if (file.FileName.Equals("second.csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new IOException("Simulated CSV column save failure.");
+                }
+
+                CsvFileUtility.WriteCsvFile(file, hasHeaderRow, createBackup: false);
+            });
+
+        var ex = Assert.Throws<IOException>(() =>
+            service.AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
+
+        Assert.Contains("transactionally", ex.Message);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
+        Assert.Equal(["A100", "Apple"], files[0].Rows[0]);
+        Assert.Equal(["Code", "Name"], files[1].HeaderRow);
+        Assert.Equal(["B200", "Banana"], files[1].Rows[0]);
+        Assert.Equal("Code,Name\r\nA100,Apple\r\n", File.ReadAllText(firstPath, Encoding.UTF8));
+        Assert.Equal("Code,Name\r\nB200,Banana\r\n", File.ReadAllText(secondPath, Encoding.UTF8));
+        Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
+        Assert.Single(Directory.GetFiles(temp.DirectoryPath, "second.csv.bak-*"));
+    }
+
 }

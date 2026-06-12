@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using TagPrintStudio.Enums;
@@ -85,7 +85,7 @@ public sealed partial class MainForm : Form
     {
         var scope = CurrentOutputScope();
         var files = PrintableRowService.SelectFiles(scope, csvRows, CurrentCsv());
-        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType());
+        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName());
     }
 
     private bool SavePreset()
@@ -151,6 +151,7 @@ public sealed partial class MainForm : Form
             Description = "",
             HasHeaderRow = headerCheck.Checked,
             LayoutRef = layoutCombo.SelectedItem is FileComboItem layout ? Path.GetFileName(layout.Path) : "",
+            PrintTargetOrderColumnName = CurrentPrintTargetOrderColumnName(),
             CreatedAt = now,
             UpdatedAt = now,
             Fields = DefaultPresetFields()
@@ -276,6 +277,7 @@ public sealed partial class MainForm : Form
         fieldsGrid.EndEdit(DataGridViewDataErrorContexts.Commit);
         currentPreset.HasHeaderRow = headerCheck.Checked;
         currentPreset.LayoutRef = layoutCombo.SelectedItem is FileComboItem layout ? Path.GetFileName(layout.Path) : currentPreset.LayoutRef;
+        currentPreset.PrintTargetOrderColumnName = CurrentPrintTargetOrderColumnName();
         currentPreset.Fields = fieldRows.ToList();
     }
 

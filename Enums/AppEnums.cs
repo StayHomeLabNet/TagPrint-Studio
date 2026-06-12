@@ -20,7 +20,7 @@ public enum PrintSortMode { LoadOrder, ItemCode, SelectedField, PrintTargetOrder
 public enum PrintSortValueType { Text, Number, Natural, Date }
 public enum BackupCleanupStartupMode { Disabled, Ask, Auto }
 public enum DuplicateValueType { Text, Number, Date }
-public enum DuplicateResolutionRule { KeepLargest, KeepSmallest, KeepNonEmpty, KeepFirst }
+public enum DuplicateResolutionRule { KeepLargest, KeepSmallest, KeepNonEmpty, KeepFirst, KeepLast }
 public enum DuplicateCopyMode { FillIfEmpty, Overwrite }
 public enum CsvFileStatus { Ok, ColumnMismatch, EncodingWarning, MissingRequiredField, EmptyRowsSkipped, LoadFailed }
 public enum PreviewMode { Page, SingleTag }

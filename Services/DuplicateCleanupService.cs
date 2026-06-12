@@ -97,25 +97,32 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
                 group => group.OrderBy(action => action.KeepRowIndex).ThenBy(action => action.ColumnIndex).ToList(),
                 StringComparer.OrdinalIgnoreCase);
 
-        var updatedFiles = new List<string>();
-        var deletedRowCount = 0;
         var targetPaths = deletesByFile.Keys
             .Concat(carryByFile.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var file in csvFiles.Where(file => targetPaths.Contains(file.FilePath)))
+        var writePlans = csvFiles
+            .Where(file => targetPaths.Contains(file.FilePath))
+            .Select(file => new DuplicateCsvWritePlan(file, CloneCsvFile(file)))
+            .ToList();
+
+        var deletedRowCount = 0;
+
+        foreach (var plan in writePlans)
         {
-            if (carryByFile.TryGetValue(file.FilePath, out var carryActions))
+            var work = plan.Work;
+
+            if (carryByFile.TryGetValue(work.FilePath, out var carryActions))
             {
                 foreach (var action in carryActions)
                 {
-                    if (action.KeepRowIndex < 0 || action.KeepRowIndex >= file.Rows.Count)
+                    if (action.KeepRowIndex < 0 || action.KeepRowIndex >= work.Rows.Count)
                     {
                         continue;
                     }
 
-                    var row = file.Rows[action.KeepRowIndex];
+                    var row = work.Rows[action.KeepRowIndex];
                     if (action.ColumnIndex < 0 || action.ColumnIndex >= row.Length)
                     {
                         continue;
@@ -125,23 +132,28 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
                 }
             }
 
-            if (deletesByFile.TryGetValue(file.FilePath, out var deleteIndexes))
+            if (deletesByFile.TryGetValue(work.FilePath, out var deleteIndexes))
             {
                 foreach (var rowIndex in deleteIndexes)
                 {
-                    if (rowIndex < 0 || rowIndex >= file.Rows.Count)
+                    if (rowIndex < 0 || rowIndex >= work.Rows.Count)
                     {
                         continue;
                     }
 
-                    file.Rows.RemoveAt(rowIndex);
+                    work.Rows.RemoveAt(rowIndex);
                     deletedRowCount++;
                 }
             }
 
-            CsvFileUtility.WriteCsvFile(file, hasHeaderRow);
-            updatedFiles.Add(file.FilePath);
+            work.RowCount = work.Rows.Count;
+            work.ColumnCount = Math.Max(work.HeaderRow?.Length ?? 0, work.Rows.Count == 0 ? 0 : work.Rows.Max(row => row.Length));
         }
+
+        WriteChangedCsvFilesTransactionally(writePlans, hasHeaderRow);
+        ApplyCsvFileState(writePlans);
+
+        var updatedFiles = writePlans.Select(plan => plan.Original.FilePath).ToList();
 
         return new DuplicateApplyResult
         {
@@ -149,6 +161,138 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             DeletedRowCount = deletedRowCount,
             UpdatedFiles = updatedFiles
         };
+    }
+
+    private sealed class DuplicateCsvWritePlan(CsvFileItem original, CsvFileItem work)
+    {
+        public CsvFileItem Original { get; } = original;
+        public CsvFileItem Work { get; } = work;
+        public string? BackupPath { get; set; }
+        public bool TargetExisted { get; set; }
+        public bool TargetWritten { get; set; }
+    }
+
+    private static CsvFileItem CloneCsvFile(CsvFileItem file) => new()
+    {
+        FilePath = file.FilePath,
+        FileName = file.FileName,
+        EncodingName = file.EncodingName,
+        Delimiter = file.Delimiter,
+        RowCount = file.RowCount,
+        ColumnCount = file.ColumnCount,
+        Status = file.Status,
+        Note = file.Note,
+        HeaderRow = file.HeaderRow?.ToArray(),
+        Rows = file.Rows.Select(row => row.ToArray()).ToList()
+    };
+
+    private static void WriteChangedCsvFilesTransactionally(List<DuplicateCsvWritePlan> changedFiles, bool hasHeaderRow)
+    {
+        try
+        {
+            foreach (var plan in changedFiles)
+            {
+                plan.TargetExisted = File.Exists(plan.Original.FilePath);
+                if (plan.TargetExisted)
+                {
+                    plan.BackupPath = CsvBackupUtility.CreateTimestampedBackup(plan.Original.FilePath);
+                }
+            }
+
+            foreach (var plan in changedFiles)
+            {
+                CsvFileUtility.WriteCsvFile(plan.Work, hasHeaderRow, createBackup: false);
+                plan.TargetWritten = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            var rollbackErrors = RollBackCsvWrites(changedFiles);
+            var message = BuildTransactionalSaveFailureMessage(changedFiles, ex, rollbackErrors);
+            throw new IOException(message, ex);
+        }
+    }
+
+    private static List<Exception> RollBackCsvWrites(IEnumerable<DuplicateCsvWritePlan> changedFiles)
+    {
+        var rollbackErrors = new List<Exception>();
+
+        foreach (var plan in changedFiles.Reverse())
+        {
+            try
+            {
+                if (plan.BackupPath is not null && File.Exists(plan.BackupPath))
+                {
+                    File.Copy(plan.BackupPath, plan.Original.FilePath, overwrite: true);
+                }
+                else if (!plan.TargetExisted && plan.TargetWritten && File.Exists(plan.Original.FilePath))
+                {
+                    File.Delete(plan.Original.FilePath);
+                }
+            }
+            catch (Exception rollbackEx)
+            {
+                rollbackErrors.Add(rollbackEx);
+            }
+        }
+
+        return rollbackErrors;
+    }
+
+    private static string BuildTransactionalSaveFailureMessage(
+        IEnumerable<DuplicateCsvWritePlan> changedFiles,
+        Exception saveException,
+        IReadOnlyCollection<Exception> rollbackErrors)
+    {
+        var attemptedFiles = changedFiles.Select(plan => plan.Original.FilePath).ToList();
+        var backupFiles = changedFiles
+            .Where(plan => !string.IsNullOrWhiteSpace(plan.BackupPath))
+            .Select(plan => plan.BackupPath!)
+            .ToList();
+        var writtenFiles = changedFiles
+            .Where(plan => plan.TargetWritten)
+            .Select(plan => plan.Original.FilePath)
+            .ToList();
+
+        var lines = new List<string>
+        {
+            "Duplicate cleanup CSV save failed. Changes were written transactionally and rollback was attempted.",
+            $"Original error: {saveException.Message}",
+            attemptedFiles.Count == 0
+                ? "CSV files planned for update: none"
+                : "CSV files planned for update:" + Environment.NewLine + string.Join(Environment.NewLine, attemptedFiles.Select(path => $"- {path}")),
+            writtenFiles.Count == 0
+                ? "CSV files written before failure: none"
+                : "CSV files written before failure:" + Environment.NewLine + string.Join(Environment.NewLine, writtenFiles.Select(path => $"- {path}")),
+            backupFiles.Count == 0
+                ? "Backup files created before failure: none"
+                : "Backup files created before failure:" + Environment.NewLine + string.Join(Environment.NewLine, backupFiles.Select(path => $"- {path}"))
+        };
+
+        if (rollbackErrors.Count == 0)
+        {
+            lines.Add("Rollback completed. The in-memory CSV data was not changed.");
+        }
+        else
+        {
+            lines.Add("Rollback had errors. Please restore from the listed backup files if needed.");
+            lines.AddRange(rollbackErrors.Select(error => $"Rollback error: {error.Message}"));
+        }
+
+        return string.Join(Environment.NewLine + Environment.NewLine, lines);
+    }
+
+    private static void ApplyCsvFileState(IEnumerable<DuplicateCsvWritePlan> changedFiles)
+    {
+        foreach (var plan in changedFiles)
+        {
+            plan.Original.HeaderRow = plan.Work.HeaderRow?.ToArray();
+            plan.Original.Rows = plan.Work.Rows.Select(row => row.ToArray()).ToList();
+            plan.Original.RowCount = plan.Work.RowCount;
+            plan.Original.ColumnCount = plan.Work.ColumnCount;
+            plan.Original.Status = plan.Work.Status;
+            plan.Original.Note = plan.Work.Note;
+        }
     }
 
     private static FieldDefinition ResolveField(PresetFile preset, string fieldId)
@@ -194,6 +338,11 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             for (var rowIndex = 0; rowIndex < file.Rows.Count; rowIndex++)
             {
                 var row = file.Rows[rowIndex];
+                if (CsvFileUtility.IsBlankRow(row))
+                {
+                    continue;
+                }
+
                 var keyValue = ValueAt(row, keyField.ColumnIndex).Trim();
                 if (options.IgnoreEmptyKeys && string.IsNullOrWhiteSpace(keyValue))
                 {
@@ -224,6 +373,7 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
                 .OrderByDescending(row => !string.IsNullOrWhiteSpace(row.CompareValue))
                 .ThenBy(row => row.SourceOrder)
                 .ToList(),
+            DuplicateResolutionRule.KeepLast => rows.OrderByDescending(row => row.SourceOrder).ToList(),
             _ => rows.OrderBy(row => row.SourceOrder).ToList()
         };
     }
@@ -365,6 +515,7 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             DuplicateResolutionRule.KeepLargest => isKeep ? T("残す: 最大値", "Keep: largest value") : T("削除: より小さい値", "Delete: smaller value"),
             DuplicateResolutionRule.KeepSmallest => isKeep ? T("残す: 最小値", "Keep: smallest value") : T("削除: より大きい値", "Delete: larger value"),
             DuplicateResolutionRule.KeepNonEmpty => isKeep ? T("残す: 空でない値", "Keep: non-empty value") : T("削除: 優先度が低い", "Delete: lower priority"),
+            DuplicateResolutionRule.KeepLast => isKeep ? T("残す: 後勝ち", "Keep: last row wins") : T("削除: 先に見つかった重複", "Delete: earlier duplicate"),
             _ => isKeep ? T("残す: 先勝ち", "Keep: first row wins") : T("削除: 後から見つかった重複", "Delete: later duplicate")
         };
     }

@@ -416,8 +416,8 @@ public sealed partial class MainForm : Form
 
         var confirm = MessageBox.Show(
             LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "設定をインポートすると、現在の layouts / presets / recent / settings が上書きされ、画面を再読み込みします。続行しますか？"
-                : "Importing settings will overwrite the current layouts / presets / recent / settings and reload the app state. Do you want to continue?",
+                ? "設定をインポートすると、ZIPに含まれる layouts / presets / recent / settings が現在のデータへ反映され、画面を再読み込みします。続行しますか？"
+                : "Importing settings will apply the layouts / presets / recent / settings folders contained in the ZIP and reload the app state. Do you want to continue?",
             LocalizationService.T("common.appTitle"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning);
@@ -458,12 +458,13 @@ public sealed partial class MainForm : Form
             initialFolder,
             settings.BackupCleanupRetentionDays,
             settings.BackupCleanupMaxCountPerCsv);
-        dialog.ShowDialog(this);
-
-        settings.LastBackupCleanupFolderPath = dialog.FolderPath;
-        settings.BackupCleanupRetentionDays = dialog.RetentionDays;
-        settings.BackupCleanupMaxCountPerCsv = dialog.MaxCountPerCsv;
-        SaveCurrentSettings();
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            settings.LastBackupCleanupFolderPath = dialog.FolderPath;
+            settings.BackupCleanupRetentionDays = dialog.RetentionDays;
+            settings.BackupCleanupMaxCountPerCsv = dialog.MaxCountPerCsv;
+            SaveCurrentSettings();
+        }
     }
 
     private void RunStartupBackupCleanupIfNeeded()
@@ -506,7 +507,8 @@ public sealed partial class MainForm : Form
                     message,
                     preview.FolderPath,
                     preview.DeleteCount,
-                    preview.DeleteBytes);
+                    preview.DeleteBytes,
+                    preview.Files.Where(file => file.DeleteCandidate).ToList());
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
                     return;

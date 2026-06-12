@@ -29,14 +29,23 @@ public static class CsvFileUtility
 
     public static Encoding EncodingForCsv(string encodingName)
     {
+        if (encodingName.Contains("UTF-16 LE", StringComparison.OrdinalIgnoreCase))
+        {
+            return Encoding.Unicode;
+        }
+
+        if (encodingName.Contains("UTF-16 BE", StringComparison.OrdinalIgnoreCase))
+        {
+            return Encoding.BigEndianUnicode;
+        }
+
         if (encodingName.Contains("Shift_JIS", StringComparison.OrdinalIgnoreCase))
         {
             return Encoding.GetEncoding(932);
         }
 
         return new UTF8Encoding(encoderShouldEmitUTF8Identifier:
-            encodingName.Contains("UTF-8 BOM", StringComparison.OrdinalIgnoreCase)
-            || encodingName.Contains("BOM", StringComparison.OrdinalIgnoreCase));
+            encodingName.Contains("UTF-8 BOM", StringComparison.OrdinalIgnoreCase));
     }
 
     public static Encoding EncodingForCsv(CsvPreviewRowContext context) => EncodingForCsv(context.EncodingName);
@@ -154,6 +163,8 @@ public static class CsvFileUtility
         ";" => "Semicolon",
         _ => "Comma"
     };
+
+    public static bool IsBlankRow(string[] row) => row.Length == 0;
 
     public static string ToCsvLine(IEnumerable<string> cells, string? delimiter)
     {

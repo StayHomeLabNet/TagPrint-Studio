@@ -28,7 +28,7 @@ public sealed class TagFinderService : ITagFinderService
         var matches = new List<TagFinderMatch>();
         foreach (var file in csvFiles)
         {
-            var flagIndex = FindHeaderIndex(file, flagColumnName);
+            var flagIndex = CsvHeaderResolver.FindIndex(file, flagColumnName);
             for (var i = 0; i < file.Rows.Count; i++)
             {
                 var row = file.Rows[i];
@@ -52,7 +52,7 @@ public sealed class TagFinderService : ITagFinderService
         var matches = new List<TagFinderMatch>();
         foreach (var file in csvFiles)
         {
-            var flagIndex = FindHeaderIndex(file, flagColumnName);
+            var flagIndex = CsvHeaderResolver.FindIndex(file, flagColumnName);
             if (flagIndex < 0) continue;
 
             for (var i = 0; i < file.Rows.Count; i++)
@@ -72,11 +72,6 @@ public sealed class TagFinderService : ITagFinderService
         return matches;
     }
 
-    private static int FindHeaderIndex(CsvFileItem file, string columnName)
-    {
-        if (file.HeaderRow is not { Length: > 0 }) return -1;
-        return Array.FindIndex(file.HeaderRow, header => string.Equals(header, columnName, StringComparison.OrdinalIgnoreCase));
-    }
 
     private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] : "";
 

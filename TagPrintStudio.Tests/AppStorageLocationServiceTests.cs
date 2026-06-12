@@ -72,4 +72,48 @@ public sealed partial class ServiceTests
         Assert.True(File.Exists(Path.Combine(targetPaths.Settings, "c.json")));
         Assert.True(File.Exists(Path.Combine(targetPaths.Recent, "d.json")));
     }
+    [Fact]
+    public void AppStorageLocation_PrepareLocation_RejectsManagedDirectoryItself()
+    {
+        using var temp = new TempDirectory();
+        var currentRoot = Path.Combine(temp.DirectoryPath, "current-root");
+        var currentPaths = AppPaths.FromAppDataRoot(currentRoot);
+        currentPaths.EnsureDirectories();
+
+        var locatorPath = Path.Combine(temp.DirectoryPath, "storage-location.json");
+        var service = new AppStorageLocationService(
+            locatorPath,
+            Path.Combine(temp.DirectoryPath, "default-roaming"),
+            Path.Combine(temp.DirectoryPath, "default-local"),
+            Path.Combine(temp.DirectoryPath, "default-output"));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            service.PrepareLocation(currentPaths, currentPaths.Presets, copyCurrentData: true));
+
+        Assert.Contains("cannot be inside", ex.Message);
+    }
+
+    [Fact]
+    public void AppStorageLocation_PrepareLocation_RejectsManagedDirectoryItselfWithTrailingSeparator()
+    {
+        using var temp = new TempDirectory();
+        var currentRoot = Path.Combine(temp.DirectoryPath, "current-root");
+        var currentPaths = AppPaths.FromAppDataRoot(currentRoot);
+        currentPaths.EnsureDirectories();
+
+        var locatorPath = Path.Combine(temp.DirectoryPath, "storage-location.json");
+        var service = new AppStorageLocationService(
+            locatorPath,
+            Path.Combine(temp.DirectoryPath, "default-roaming"),
+            Path.Combine(temp.DirectoryPath, "default-local"),
+            Path.Combine(temp.DirectoryPath, "default-output"));
+
+        var selectedRoot = currentPaths.Settings + Path.DirectorySeparatorChar;
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            service.PrepareLocation(currentPaths, selectedRoot, copyCurrentData: true));
+
+        Assert.Contains("cannot be inside", ex.Message);
+    }
+
 }

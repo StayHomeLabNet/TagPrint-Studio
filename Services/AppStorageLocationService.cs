@@ -131,8 +131,8 @@ public sealed class AppStorageLocationService : IAppStorageLocationService
             return false;
         }
 
-        var candidate = normalizedParent + Path.DirectorySeparatorChar;
-        return normalizedPath.StartsWith(candidate, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(normalizedPath, normalizedParent, StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.StartsWith(normalizedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)

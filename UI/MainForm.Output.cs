@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
@@ -24,7 +24,7 @@ public sealed partial class MainForm
         outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
         outputScopeCombo = BottomComboBox();
-        outputScopeCombo.Items.AddRange(["全体を1つのPDF", "CSVごとに別PDF", "1行ごとに個別PNG"]);
+        outputScopeCombo.Items.AddRange(OutputScopeItems());
         outputScopeCombo.SelectedIndex = 0;
         outputScopeCombo.SelectedIndexChanged += (_, _) =>
         {
@@ -452,6 +452,7 @@ public sealed partial class MainForm
         PrintScalingMode = SelectedPrintScalingMode(),
         PrintSortMode = CurrentPrintSortMode(),
         PrintSortFieldId = SelectedPrintSortFieldId(),
+        PrintTargetOrderColumnName = CurrentPrintTargetOrderColumnName(),
         PrintSortValueType = CurrentPrintSortValueType(),
         PrintOffsetXmm = (double)printOffsetXBox.Value,
         PrintOffsetYmm = (double)printOffsetYBox.Value
@@ -461,6 +462,30 @@ public sealed partial class MainForm
     {
         var raw = outputFolderBox.Text.Trim();
         return string.IsNullOrWhiteSpace(raw) ? raw : Path.GetFullPath(raw);
+    }
+
+    private string CurrentPrintTargetOrderColumnName()
+    {
+        return string.IsNullOrWhiteSpace(currentPreset.PrintTargetOrderColumnName)
+            ? "tagPrintOrder"
+            : currentPreset.PrintTargetOrderColumnName.Trim();
+    }
+
+    private void UpdatePresetPrintTargetOrderColumnName(string orderColumnName)
+    {
+        var normalized = string.IsNullOrWhiteSpace(orderColumnName)
+            ? "tagPrintOrder"
+            : orderColumnName.Trim();
+
+        if (string.Equals(currentPreset.PrintTargetOrderColumnName, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        currentPreset.PrintTargetOrderColumnName = normalized;
+        MarkPresetDirty();
+        ResetPreviewPage();
+        RedrawPreview();
     }
 
     private int SelectedOutputDpi()

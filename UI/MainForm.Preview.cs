@@ -24,7 +24,7 @@ public sealed partial class MainForm : Form
         var allMode = scope == OutputScopeType.SinglePdfAllCsv;
         var file = allMode ? null : CurrentCsv();
         var files = PrintableRowService.SelectFiles(scope, csvRows, file);
-        var printableRows = PrintableRowService.PrintableRows(currentPreset, files, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType());
+        var printableRows = PrintableRowService.PrintableRows(currentPreset, files, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName());
         if (printableRows.Count == 0)
         {
             ShowPreviewImage(null, isPageMode: previewMode == PreviewMode.Page);
@@ -403,7 +403,7 @@ public sealed partial class MainForm : Form
         if (csvRows.All(c => c.Status != CsvFileStatus.Ok)) { MessageBox.Show(LocalizationService.T("main.message.noValidCsv"), LocalizationService.T("common.appTitle")); return false; }
         if (requireOutputFolder && string.IsNullOrWhiteSpace(outputFolderBox.Text)) { MessageBox.Show(LocalizationService.T("main.message.outputFolderRequired"), LocalizationService.T("common.appTitle")); return false; }
         currentPreset.Fields = fieldRows.ToList();
-        var result = preflightCheckService.Check(currentLayout, currentPreset, csvRows.ToList());
+        var result = preflightCheckService.Check(currentLayout, currentPreset, csvRows.ToList(), headerCheck.Checked, CurrentPrintSortMode(), CurrentPrintTargetOrderColumnName());
         if (result.HasIssues)
         {
             using var dialog = new DetailsDialog(

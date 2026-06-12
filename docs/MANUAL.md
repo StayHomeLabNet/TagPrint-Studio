@@ -1,10 +1,10 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.0.7**
+Target version: **TagPrint Studio v1.0.8**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV field mapping, layout design, page and single-tag preview, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, and custom app data storage locations.
+It supports CSV field mapping, layout design, page and single-tag preview, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ---
 
@@ -24,7 +24,7 @@ It supports CSV field mapping, layout design, page and single-tag preview, PDF/P
 12. [CSV Duplicate Cleanup](#12-csv-duplicate-cleanup)
 13. [CSV Merge](#13-csv-merge)
 14. [Settings](#14-settings)
-15. [Files and Data Locations](#15-files-and-data-locations)
+15. [Files, Data Locations, and Safety Files](#15-files-data-locations-and-safety-files)
 16. [Troubleshooting](#16-troubleshooting)
 17. [Release Check List](#17-release-check-list)
 
@@ -39,10 +39,13 @@ TagPrint Studio is intended for workflows such as:
 - Selecting printable rows with a flag column such as `tagPrint`.
 - Searching Item Codes and marking matching rows for output.
 - Creating extra print queue rows when more than one copy is needed.
+- Preserving source CSV structure, including blank physical rows.
 - Cleaning duplicate rows across multiple CSV files.
 - Merging multiple CSV files into one parent CSV.
 - Exporting labels to PDF or PNG.
 - Printing directly from the application.
+- Backing up and importing application settings.
+- Reviewing crash logs after unexpected errors.
 
 Main screens:
 
@@ -53,6 +56,7 @@ Main screens:
 | Tag Finder | Search CSV rows, mark target rows, create print queue CSV files, and preview tags |
 | CSV Duplicate Cleanup | Detect duplicate rows and decide which row to keep |
 | CSV Merge | Merge CSV files from a folder into a parent CSV |
+| Backup File Cleanup | Preview and remove old timestamped CSV backup files |
 | Print Target Confirmation | Review the exact output target list before export or direct print |
 
 ---
@@ -78,6 +82,8 @@ Recommended operational workflow:
 3. Use print target confirmation before actual output.
 4. Use preflight checks to catch missing values, invalid barcodes, missing images, and layout problems.
 5. Use print X/Y offsets for printer-specific position correction.
+6. When replacing existing PDF/PNG files, let the app finish normally so temporary backups can be cleaned up.
+7. If an unexpected error occurs, check the app data `logs` folder.
 
 ---
 
@@ -98,17 +104,18 @@ The main window contains:
 
 | Menu | Main actions |
 |---|---|
-| File | Open CSV, open folder, Tag Finder, preset operations, output folder, exit |
+| File | New/save preset, open CSV, open folder, Tag Finder, output folder, exit |
 | Layout | Open Layout Designer |
 | Export | Save PNG, save PDF, direct print |
 | View | Page preview, single-tag preview, previous/next navigation |
-| Settings | Startup CSV/folder, language, print target confirmation, settings backup/import, settings location |
+| Settings | Startup CSV/folder, backup cleanup, language, print target confirmation, settings backup/import, settings location, app data location |
 | Help | Version information |
 
 Common shortcuts:
 
 | Shortcut | Action |
 |---|---|
+| `Ctrl + N` | New preset |
 | `Ctrl + O` | Open CSV |
 | `Ctrl + Shift + O` | Open CSV folder |
 | `Ctrl + S` | Save preset |
@@ -122,12 +129,14 @@ Common shortcuts:
 | `Ctrl + 2` | Single-tag preview |
 | `Alt + Left` | Previous page or tag |
 | `Alt + Right` | Next page or tag |
+| `Ctrl + Alt + O` | Configure startup CSV |
+| `Ctrl + Alt + F` | Configure startup folder |
 
 ### 3.2 Presets
 
-A preset stores CSV field definitions and print-condition settings.
+A preset stores CSV field definitions and print-condition settings. It does not store the tag layout itself.
 
-| Button | Description |
+| Button or menu item | Description |
 |---|---|
 | New | Create a new preset |
 | Save Preset | Save current field settings |
@@ -141,6 +150,13 @@ Deletion is protected so that the last preset cannot be removed accidentally.
 ### 3.3 Layout Selection
 
 The Layout dropdown selects the layout used for preview, PDF/PNG export, and direct printing. Use **Layout Designer** to create or edit layouts.
+
+Layouts and presets are separate:
+
+| Item | Stores |
+|---|---|
+| Preset | CSV fields, column mapping, required settings, print conditions |
+| Layout | Paper, tag grid, element positions, fonts, images, barcodes, QR codes |
 
 ---
 
@@ -165,6 +181,13 @@ The **CSV Fields** table defines how CSV columns are interpreted.
 
 When **Treat first row as header** is enabled, the first CSV row is used as column names and is not printed as data.
 
+Header row mode is recommended because it allows:
+
+- Automatic field mapping.
+- More readable field names.
+- Safer CSV column addition.
+- Easier Tag Finder and duplicate cleanup setup.
+
 ### 4.2 Automatic Field Mapping
 
 When a CSV is loaded, the app can replace the default field list with fields based on the CSV header. This keeps the field list aligned with the actual CSV structure.
@@ -178,10 +201,18 @@ Behavior:
 - The new column is added to the end of each loaded CSV.
 - The first row header receives the entered column name.
 - Existing data rows receive an empty value in the new column.
+- Blank physical rows remain blank physical rows.
 - Each CSV is backed up with a timestamped name such as `products.csv.bak-20260608-142530` before it is overwritten.
 - The new field is also added to the current preset field list.
 
-This is useful when a layout or workflow needs a real CSV column, for example a `tagPrint` flag column or a font-size control column.
+This is useful when a layout or workflow needs a real CSV column, for example:
+
+| Column | Use |
+|---|---|
+| `tagPrint` | Print target flag |
+| `tagPrintOrder` | Output marking order |
+| `en.font.size` | English text font size |
+| `ja.font.size` | Japanese text font size |
 
 **Add CSV Column** requires **Treat first row as header** to be enabled.
 
@@ -189,12 +220,15 @@ This is useful when a layout or workflow needs a real CSV column, for example a 
 
 Print conditions decide which rows are printable.
 
-Common example:
+Common examples:
 
 | Field | Condition |
 |---|---|
 | `tagPrint` | Equals `true` |
 | `Last Updated` | On or after a specified date |
+| `Stock` | Greater than `0` |
+
+Blank physical rows are not printable even if field settings would otherwise match.
 
 ### 4.5 Date Value Shortcut
 
@@ -226,17 +260,68 @@ The **CSV Import** area loads and manages source CSV files.
 | Note | Warnings or details |
 | Encoding | Detected or preserved encoding |
 
-### 5.2 Multiple CSV Files
+### 5.2 Encoding Detection
+
+The app detects common CSV encodings in this order:
+
+1. UTF-8 BOM.
+2. UTF-16 LE BOM.
+3. UTF-16 BE BOM.
+4. Valid UTF-8 without BOM.
+5. Shift_JIS fallback.
+
+The detected or preserved encoding is shown in the CSV file list.
+
+### 5.3 Delimiter Detection
+
+The app can detect these delimiters:
+
+- Comma.
+- Tab.
+- Semicolon.
+
+Detection uses up to the first 20 records, not only the first record. Candidate delimiters are scored by:
+
+- How many records contain the delimiter.
+- Whether the parsed column count is consistent across records.
+- Total delimiter count.
+- Candidate priority.
+
+Delimiters inside quoted values are ignored for detection.
+
+Example where semicolon is detected from later records:
+
+```csv
+Title
+A;B;C
+1;2;3
+```
+
+### 5.4 Blank Rows
+
+Blank physical CSV rows are preserved.
+
+Behavior:
+
+- They remain in memory as blank rows.
+- They are written back as blank rows when CSV is saved.
+- They are skipped for printing.
+- They are skipped for column-count mismatch validation.
+- They are not treated as data rows for print target generation.
+
+### 5.5 Multiple CSV Files
 
 Multiple CSV files can be loaded at the same time. Output scope controls whether all CSV files or only the selected CSV are used.
 
-### 5.3 Queue CSV Files
+When multiple CSVs are loaded, keep headers and column counts consistent unless the specific feature allows skipping mismatched files.
+
+### 5.6 Queue CSV Files
 
 Tag Finder can create queue CSV files when print quantity is 2 or more.
 
 Queue file behavior:
 
-- File name: `print_queue_yyyyMMdd_HHmmss.csv`
+- File name: `print_queue_yyyyMMdd_HHmmss.csv`.
 - If the same timestamp already exists, suffixes such as `-2`, `-3`, and so on are added automatically.
 - Location: same folder as the parent CSV.
 - Row count: `print quantity - 1`.
@@ -248,6 +333,7 @@ Queue CSV management:
 - In the main CSV list, queue CSV files have a right-click menu.
 - The menu can remove the queue CSV from the list or delete the CSV file.
 - Tag Finder also has a button to delete all queue CSV files.
+- Queue CSV files are ignored by CSV Merge and duplicate cleanup workflows where appropriate.
 
 ---
 
@@ -290,9 +376,9 @@ The output controls are located at the bottom of the main window.
 
 | Output unit | Description |
 |---|---|
-| One PDF for all | Save all printable rows into one PDF |
-| Separate PDF per CSV | Save one PDF per CSV |
-| Individual PNG per row | Save each printable row as PNG |
+| All CSVs together | For PDF, save all printable rows into one PDF. For PNG, output page PNG files per CSV. |
+| Separate output per CSV | For PDF, save one PDF per CSV. For PNG, output page PNG files per CSV. |
+| Individual PNG per row | Save each printable row as PNG. |
 
 ### 7.2 DPI
 
@@ -340,15 +426,25 @@ The output folder is saved and restored between app launches.
 
 After PDF save, a completion dialog can optionally open the output folder. The checkbox state is remembered.
 
-### 7.8 Progress, Cancellation, and Partial Files
+### 7.8 Progress, Cancellation, Partial Files, and Restore
 
 Direct print, PDF export, and PNG export show a progress dialog during long-running output.
 
 - The dialog shows current progress such as page count.
-- **Cancel** requests cancellation. For direct print, cancellation stops the next pages that have not yet been sent to the printer.
-- PDF/PNG output writes through `.partial` files and moves them into place only after each file is complete.
-- If PDF/PNG output is canceled, files created by that canceled operation are removed.
+- **Cancel** requests cancellation.
+- For direct print, cancellation stops the next pages that have not yet been sent to the printer.
+- PDF/PNG output writes to a unique `.partial-*` file first.
+- A completed partial file is moved into place only after that output file has rendered successfully.
+- If the target file already exists, the existing file is temporarily backed up before replacement.
+- If the operation is canceled or fails, newly created files are removed and overwritten existing files are restored from their temporary backups.
+- If the operation completes successfully, temporary backups are removed.
 - If rendering fails on a page, the progress dialog shows the failed page number before the detailed error is shown.
+
+This behavior is especially important for:
+
+- PNG export that produces multiple files.
+- PDF export per CSV.
+- Re-exporting into a folder that already contains older files with the same names.
 
 ### 7.9 Large Print Warning
 
@@ -512,6 +608,8 @@ Controls above the canvas:
 | Value | Edit current cell value |
 | Save CSV | Save edited values to CSV |
 
+CSV save from the Layout Designer uses the same CSV preservation rules as the main app, including blank-row preservation and timestamped CSV backup creation where applicable.
+
 ---
 
 ## 10. Barcode and QR Code Elements
@@ -523,6 +621,14 @@ Supported types:
 | Code128 | Product IDs, internal codes, mixed text |
 | EAN-13 / JAN-13 | Retail product barcode |
 | QR Code | URLs, product IDs, internal codes, general text |
+
+EAN-13 / JAN-13 behavior:
+
+| Input | Behavior |
+|---|---|
+| 12 digits | The check digit is calculated automatically |
+| 13 digits | The check digit is validated |
+| Other values | Reported as invalid by preview/preflight |
 
 Preflight checks can report:
 
@@ -581,7 +687,7 @@ When a save column is added, the app adds that column to all loaded CSV files to
 
 Queue behavior:
 
-- Queue file name: `print_queue_yyyyMMdd_HHmmss.csv`
+- Queue file name: `print_queue_yyyyMMdd_HHmmss.csv`.
 - If the same timestamp already exists, suffixes such as `-2`, `-3`, and so on are added automatically.
 - Queue file location: same folder as the parent CSV.
 - Queue row count: `print quantity - 1`.
@@ -652,6 +758,7 @@ When **Apply** is pressed:
 - CSV files are backed up.
 - Duplicate rows marked for deletion are removed.
 - Carry values are written if enabled.
+- Blank rows are preserved.
 - The window remains open so results can be reviewed.
 
 ---
@@ -683,7 +790,9 @@ Safety:
 
 - Parent CSV is backed up before overwrite.
 - CSV files with mismatched headers are skipped.
+- Queue CSV files are skipped.
 - Confirmation messages show which files will be moved to the Recycle Bin.
+- Merge preview stays usable even when unrelated CSV files in the same folder have different column counts.
 
 ---
 
@@ -700,10 +809,12 @@ The Settings menu manages app behavior.
 | Open Startup Folder | Opens startup folder |
 | Clear Startup Folder | Clears startup folder |
 | Backup File Cleanup | Review and clean timestamped CSV backup files |
+| Backup Cleanup Startup Mode | Choose disabled, ask, or automatic startup backup cleanup behavior |
 | Change App Data Storage Location | Choose a custom app data root for layouts, presets, recent files, and settings |
 | Open App Data Location | Open the current app data root folder |
 | Reset App Data Location | Return to the default app data location after restart |
 | Confirm Print Targets Before Output | Enables or disables print target confirmation |
+| Large Print Warning | Configure the page threshold for print warnings |
 | Import Settings | Import settings ZIP |
 | Backup Settings | Create settings ZIP |
 | Open Settings File Location | Open app settings location |
@@ -720,11 +831,20 @@ recent/
 settings/
 ```
 
-The ZIP is saved to the current output folder.
+The ZIP is saved to the selected location.
+
+Safety behavior:
+
+- The app creates a temporary ZIP first.
+- The final ZIP is replaced only after the temporary ZIP is created successfully.
+- If backup creation fails, the existing backup ZIP is left in place.
+- Temporary files are cleaned up when possible.
 
 ### 14.2 Settings Import
 
 Import reads a backup ZIP and restores layouts, presets, recent files, and app settings.
+
+Import should be used only with trusted backup ZIP files created by TagPrint Studio.
 
 ### 14.3 Backup File Cleanup
 
@@ -737,8 +857,6 @@ Backup File Cleanup manages timestamped CSV backups such as `products.csv.bak-20
 - Cleanup moves selected backup files to the Recycle Bin.
 
 When the startup folder is configured or changed, the app can also update the Backup File Cleanup target folder after confirmation.
-
----
 
 ### 14.4 App Data Storage Location
 
@@ -758,7 +876,7 @@ When changing the app data location, the app can optionally copy the current `la
 
 ---
 
-## 15. Files and Data Locations
+## 15. Files, Data Locations, and Safety Files
 
 Default app data folders are under the user's application data area unless a custom app data root has been selected from Settings.
 
@@ -772,7 +890,7 @@ Main folders:
 | `settings` | App settings |
 | `cache` | Local cache |
 | `temp` | Temporary files |
-| `logs` | Logs |
+| `logs` | Crash logs and diagnostic logs |
 
 The app data root can be changed, opened, or reset from the Settings menu. Changing it can copy the current `layouts`, `presets`, `recent`, and `settings` folders to the new location, and requires an app restart.
 
@@ -782,21 +900,71 @@ Default output folder:
 Documents\TagPrint Studio Exports
 ```
 
+### 15.1 CSV Backups
+
+CSV write operations can create timestamped backups:
+
+```text
+products.csv.bak-20260608-142530
+```
+
+These backups are used by CSV column add, Tag Finder save, Layout Designer CSV save, duplicate cleanup, and CSV merge workflows.
+
+### 15.2 PDF/PNG Temporary Files
+
+During output, the app may temporarily create files similar to:
+
+```text
+label.pdf.partial-<id>
+label.pdf.original-backup-<id>
+```
+
+Normal successful output removes these temporary files. If the app is interrupted externally, old temporary files can usually be inspected and removed manually after confirming no output is running.
+
+### 15.3 Crash Logs
+
+Unexpected errors are logged under:
+
+```text
+<app data root>\logs
+```
+
+A crash log can include:
+
+- Timestamp.
+- Error context.
+- App version.
+- OS version.
+- .NET runtime version.
+- Exception message and stack trace.
+
 ---
 
 ## 16. Troubleshooting
 
 ### CSV text is garbled
 
-Try saving the CSV as UTF-8 with BOM or Shift_JIS. Confirm that multiple loaded CSV files do not mix incompatible encodings.
+Try saving the CSV as UTF-8 with BOM, UTF-16 with BOM, or Shift_JIS. Check the Encoding column in the CSV file list.
+
+### The wrong delimiter was detected
+
+Check whether the first several records contain consistent delimiters. Quoted delimiters are ignored, but highly irregular CSV files may still need to be resaved in a standard format.
+
+### Blank lines disappeared in old versions
+
+v1.0.8 and later preserve blank physical CSV rows. Reload and save with the current version if you need blank-row preservation.
 
 ### No printable rows appear
 
-Check print-condition field, condition type, operator, value, required fields, column indexes, and whether all loaded CSV files are valid.
+Check print-condition field, condition type, operator, value, required fields, column indexes, whether all loaded CSV files are valid, and whether the rows are blank rows.
 
 ### PDF saves to an unexpected folder
 
 Check the output folder textbox and recent output folder dropdown. The output folder is saved between launches.
+
+### Existing PDF/PNG output was not replaced after cancellation
+
+This is expected when output is canceled or fails. The app restores previously existing files and removes only new files created by the canceled operation.
 
 ### Direct print position is shifted
 
@@ -808,11 +976,15 @@ Check empty values, invalid EAN/JAN length, unsupported Code128 characters, elem
 
 ### CSV column mismatch appears
 
-This can happen when one CSV has a different number of columns. If Tag Finder adds a save column, it adds it to all loaded CSV files. Reload the folder and confirm all CSV headers match.
+This can happen when one CSV has a different number of columns. Blank rows are ignored for this check. If Tag Finder adds a save column, it adds it to all loaded CSV files. Reload the folder and confirm all CSV headers match.
 
 ### Deleted queue CSV still appears in Tag Finder
 
 Reload the parent CSV folder. Tag Finder search uses currently loaded CSV data and should ignore queue CSV files that no longer exist after reload.
+
+### The app closed unexpectedly
+
+Open the app data location from Settings and check the `logs` folder. Crash logs are intended to help diagnose unexpected errors.
 
 ---
 
@@ -822,25 +994,34 @@ Before release:
 
 1. Start the app.
 2. Confirm Japanese and English UI.
-3. Load sample CSV and folder CSV.
-4. Confirm automatic CSV field mapping.
-5. Check page preview.
-6. Check single-tag preview and previous/next tag movement.
-7. Save PDF.
-8. Save PNG.
-9. Direct print or print preview.
-10. Confirm print target dialog and search.
-11. Open Layout Designer.
-12. Move, resize, lock, hide, and arrange elements.
-13. Use Expand/Normal/Shrink canvas controls.
-14. Edit text on canvas with `Enter`, `Shift + Enter`, and `Esc`.
-15. Save layout and reload.
-16. Test Code128, EAN-13/JAN-13, and QR Code.
-17. Use Tag Finder to save `true`.
-18. Use Tag Finder print quantity to create a queue CSV.
-19. Delete queue CSV files.
-20. Run CSV Duplicate Cleanup preview and apply on test data.
-21. Run CSV Merge on test data.
-22. Backup settings.
-23. Import settings backup.
-24. Open settings file location.
+3. Confirm the About dialog shows v1.0.8.
+4. Load sample CSV and folder CSV.
+5. Confirm UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS CSV behavior where possible.
+6. Confirm delimiter detection for comma, tab, and semicolon files.
+7. Confirm blank CSV rows are preserved and are not printed.
+8. Confirm automatic CSV field mapping.
+9. Check page preview.
+10. Check single-tag preview and previous/next tag movement.
+11. Save PDF.
+12. Save PNG.
+13. Cancel PDF/PNG output into a folder with existing output files and confirm existing files are restored.
+14. Direct print or print preview.
+15. Confirm print target dialog and search.
+16. Open Layout Designer.
+17. Move, resize, lock, hide, and arrange elements.
+18. Use Expand/Normal/Shrink canvas controls.
+19. Edit text on canvas with `Enter`, `Shift + Enter`, and `Esc`.
+20. Save layout and reload.
+21. Test Code128, EAN-13/JAN-13, and QR Code.
+22. Use Tag Finder to save `true`.
+23. Use Tag Finder print quantity to create a queue CSV.
+24. Delete queue CSV files.
+25. Run CSV Duplicate Cleanup preview and apply on test data.
+26. Run CSV Merge on test data.
+27. Run Backup File Cleanup preview and cleanup on disposable test backups.
+28. Backup settings and confirm existing backup ZIP is not lost on failure scenarios where possible.
+29. Import settings backup.
+30. Open settings file location and app data location.
+31. Confirm crash logs can be written by `CrashLogService` tests.
+32. Run automated tests.
+33. Build and publish the `net8.0-windows` release.

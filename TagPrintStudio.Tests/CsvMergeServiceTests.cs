@@ -172,4 +172,74 @@ public sealed partial class ServiceTests
         Assert.True(File.Exists(second.BackupPath));
         Assert.Equal(2, Directory.GetFiles(temp.DirectoryPath, "parent.csv.bak-*").Length);
     }
+
+    [Fact]
+    public void CsvMerge_Apply_RestoresParentAndSourceFilesWhenDeletingMergedSourceFails()
+    {
+        using var temp = new TempDirectory();
+        var parentPath = temp.WriteText("parent.csv", "Code,Price\r\nA100,120\r\n", Encoding.UTF8);
+        var child1Path = temp.WriteText("child1.csv", "Code,Price\r\nB200,80\r\n", Encoding.UTF8);
+        var child2Path = temp.WriteText("child2.csv", "Code,Price\r\nC300,90\r\n", Encoding.UTF8);
+        var preset = Preset(Field("code", "Code", 0), Field("price", "Price", 1));
+        var service = new CsvMergeService(
+            new CsvLoaderService(),
+            path =>
+            {
+                if (Path.GetFileName(path).Equals("child2.csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new IOException("Simulated delete failure.");
+                }
+
+                File.Delete(path);
+            });
+
+        var preview = service.Preview(new CsvMergeOptions
+        {
+            FolderPath = temp.DirectoryPath,
+            ParentCsvPath = parentPath,
+            HasHeaderRow = true,
+            DeleteMergedSourceFiles = true
+        }, preset);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => service.Apply(preview, preset));
+        var parentText = File.ReadAllText(parentPath, Encoding.UTF8);
+
+        Assert.Contains("親CSVをバックアップから復元しました", ex.Message);
+        Assert.Contains("A100,120", parentText);
+        Assert.DoesNotContain("B200,80", parentText);
+        Assert.DoesNotContain("C300,90", parentText);
+        Assert.True(File.Exists(child1Path));
+        Assert.True(File.Exists(child2Path));
+        Assert.Contains("B200,80", File.ReadAllText(child1Path, Encoding.UTF8));
+        Assert.Contains("C300,90", File.ReadAllText(child2Path, Encoding.UTF8));
+    }
+
+
+    [Fact]
+    public void CsvMerge_Preview_SkipsColumnMismatchFilesEvenWhenHeadersMatch()
+    {
+        using var temp = new TempDirectory();
+        var parentPath = temp.WriteText("parent.csv", "Code,Price\r\nA100,120\r\n", Encoding.UTF8);
+        var mismatchPath = temp.WriteText("child-mismatch.csv", "Code,Price\r\nB200\r\n", Encoding.UTF8);
+        _ = temp.WriteText("child-ok.csv", "Code,Price\r\nC300,90\r\n", Encoding.UTF8);
+        var preset = Preset(Field("code", "Code", 0), Field("price", "Price", 1));
+
+        var preview = new CsvMergeService().Preview(new CsvMergeOptions
+        {
+            FolderPath = temp.DirectoryPath,
+            ParentCsvPath = parentPath,
+            HasHeaderRow = true
+        }, preset);
+
+        Assert.Equal(1, preview.AppendFileCount);
+        Assert.Equal(1, preview.AppendRowCount);
+        Assert.Equal(1, preview.SkipFileCount);
+        Assert.DoesNotContain(preview.AppendFilePaths, path => string.Equals(path, mismatchPath, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(preview.Items, item =>
+            item.FileName == "child-mismatch.csv" &&
+            item.HeaderMatches &&
+            !string.Equals(item.Status, "Append", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(item.Status, "追記対象", StringComparison.OrdinalIgnoreCase));
+    }
+
 }

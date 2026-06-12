@@ -77,7 +77,7 @@ public sealed partial class MainForm : Form
         LocalizationService.Apply(this);
         LocalizationService.Apply(menuStrip);
         if (headerCheck is not null) headerCheck.Text = LocalizationService.T("main.checkbox.headerRow");
-        if (duplicateCleanupButton is not null) duplicateCleanupButton.Text = LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "重複整理" : "Duplicate Cleanup";
+        if (duplicateCleanupButton is not null) duplicateCleanupButton.Text = LocalizationService.T("duplicateCleanup.duplicateCleanup");
         if (tagFinderButton is not null) tagFinderButton.Text = LocalizationService.T("main.button.tagFinder");
         if (settingsImportMenuItem is not null) settingsImportMenuItem.Text = SettingsImportMenuText();
         if (settingsBackupMenuItem is not null) settingsBackupMenuItem.Text = SettingsBackupMenuText();

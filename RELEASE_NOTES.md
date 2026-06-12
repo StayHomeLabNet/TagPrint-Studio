@@ -2,6 +2,49 @@
 
 ## English
 
+### v1.0.8
+
+#### Output Safety
+
+- Reworked PDF/PNG output replacement so canceled or failed output no longer risks deleting an existing file that had already been overwritten.
+- Output files are now written through unique `.partial-*` files before final replacement.
+- When an output path already exists, the existing file is temporarily moved to an operation backup and restored if cancellation or failure occurs.
+- On cancellation, cleanup removes only files newly created by the canceled operation.
+- This improves safety for multi-file PNG export, per-CSV PDF export, and any output mode that can replace existing files.
+
+#### CSV Loading Fidelity
+
+- Blank physical CSV rows are now preserved instead of being silently removed during load.
+- Blank rows are written back as blank rows when the CSV is saved.
+- Blank rows are not treated as printable data rows.
+- Blank rows are ignored by column-count mismatch checks so intentional blank spacing in source CSV files does not create false import errors.
+
+#### CSV Detection
+
+- Delimiter detection now uses up to the first 20 records instead of only the first record.
+- Comma, tab, and semicolon candidates are scored by record usage, consistent column count, total delimiter count, and priority.
+- Delimiters inside quoted fields are ignored during detection.
+- UTF-16 LE BOM and UTF-16 BE BOM CSV files are now detected.
+- Encoding detection order is now UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, then Shift_JIS fallback.
+
+#### Settings Backup and Crash Logs
+
+- Settings backup ZIP creation now writes to a temporary ZIP first and replaces the final ZIP only after the archive is created successfully.
+- Existing backup ZIP files are no longer deleted before a new backup has been completed.
+- Added application-level unhandled exception handling.
+- Unexpected errors now show a user-facing error message and write crash logs to the app data `logs` folder.
+
+#### Localization and Platform Target
+
+- Replaced remaining direct `L("Japanese", "English")` dialog strings in cleanup dialogs with shared localization resource keys.
+- Updated the application and test projects from `net10.0-windows` to `net8.0-windows` for LTS-friendly build, CI, and distribution.
+
+#### Documentation
+
+- Updated README files for v1.0.8.
+- Updated release notes for v1.0.8.
+- Rewrote the English and Japanese manuals in the existing format with coverage for current features and safety behavior.
+
 ### v1.0.7
 
 #### Tag Finder
@@ -84,13 +127,7 @@
 #### CSV and Layout Editing
 
 - Added **Add CSV Column** in the main CSV Fields area.
-  - Appends the new column to every loaded CSV file.
-  - Writes the column name to the header row.
-  - Creates `.bak` backups before overwriting CSV files.
 - Added row-specific font-size support for text layout elements.
-  - Text elements can use a fixed font size or a selected CSV field.
-  - Empty or invalid CSV font-size values fall back to the fixed font size.
-  - CSV font-size values are clamped by element min/max limits.
 
 #### Tests and Documentation
 
@@ -105,9 +142,6 @@
 - Added an optional print target confirmation dialog before PDF, PNG, and direct print output.
 - The dialog shows CSV summaries, row counts, tag counts, page counts, and the active print order.
 - Added search to the print target confirmation dialog.
-  - Search by order, CSV, row, sort value, or key value.
-  - Pressing `Enter` in the search value field runs the search.
-  - Matching rows are jumped to and highlighted.
 - Added a Settings menu toggle: **Confirm Print Targets Before Output**.
 
 #### Print Order
@@ -119,26 +153,15 @@
 
 - Added a small tag preview panel to Tag Finder.
 - Added a persistent preview on/off checkbox.
-- Added print quantity handling.
-  - Quantity `1` behaves like normal save.
-  - Quantity `2` or more creates a `print_queue_yyyyMMdd_HHmmss.csv` file in the parent CSV folder.
-  - Queue rows are generated as `quantity - 1` so the original row plus queue rows equals the requested total.
-- Added queue CSV cleanup from Tag Finder.
-- Queue CSV files can also be removed from the main CSV list context menu.
+- Added print quantity handling and queue CSV creation.
+- Added queue CSV cleanup from Tag Finder and the main CSV list.
 - Search focus now starts in the search value field when Tag Finder opens.
 
-#### Refactoring
+#### Refactoring and Documentation
 
 - Moved print target summary creation into `PrintTargetSummaryService`.
 - Moved Tag Finder search and checked-row collection into `TagFinderService`.
-- Added dedicated model classes for print target confirmation and Tag Finder matches.
-
-#### Documentation
-
-- Updated version metadata to v1.0.3.
-- Rebuilt README files.
-- Rebuilt the English and Japanese manuals using the current content and existing screenshots.
-- Regenerated release notes with English first and Japanese second.
+- Rebuilt README, manuals, and release notes for the current feature set.
 
 ### v1.0.2
 
@@ -167,13 +190,7 @@
 
 #### Layout Designer
 
-- Added vertical canvas area controls in the bottom-right of the Layout Designer canvas:
-  - **Expand**
-  - **Normal**
-  - **Shrink**
-- **Expand** moves the upper splitter upward in 10% steps, up to +50%.
-- **Shrink** moves the upper splitter downward in 10% steps, down to -40%.
-- **Normal** restores the default splitter position.
+- Added vertical canvas area controls in the bottom-right of the Layout Designer canvas.
 
 ### v1.0.0
 
@@ -186,6 +203,49 @@
 ---
 
 ## Japanese
+
+### v1.0.8
+
+#### 出力安全性
+
+- PDF/PNG 出力の置換処理を見直し、キャンセルや失敗時に、上書き済みの既存ファイルまで削除してしまうリスクを減らしました。
+- 出力ファイルは一意な `.partial-*` ファイルへ書き込んでから最終ファイルへ置き換えます。
+- 出力先に既存ファイルがある場合は一時バックアップへ退避し、キャンセル/失敗時は復元します。
+- キャンセル時の cleanup は、その操作で新規作成したファイルだけを削除します。
+- 複数 PNG 出力、CSV ごとの PDF 出力、既存ファイルを置き換える出力モードの安全性が向上しました。
+
+#### CSV 読み込み再現性
+
+- 物理的な空行を読み込み時に削除せず保持するようにしました。
+- CSV 保存時も空行を空行として書き戻します。
+- 空行は印刷対象行として扱いません。
+- 空行は列数不一致チェックから除外し、意図的な空行で false error が出ないようにしました。
+
+#### CSV 判定
+
+- 区切り文字判定を先頭 1 レコードだけでなく、先頭最大 20 レコードから行うようにしました。
+- カンマ、タブ、セミコロンの候補を、出現レコード数、列数の安定性、総出現数、優先順位で判定します。
+- 引用符内の区切り文字は判定対象から除外します。
+- UTF-16 LE BOM と UTF-16 BE BOM の CSV を検出できるようにしました。
+- 文字コード判定順は UTF-8 BOM、UTF-16 LE BOM、UTF-16 BE BOM、valid UTF-8、Shift_JIS fallback です。
+
+#### 設定バックアップとクラッシュログ
+
+- 設定バックアップ ZIP は一時 ZIP に作成し、成功後にだけ最終 ZIP へ置き換えるようにしました。
+- 新しいバックアップが完成する前に既存バックアップ ZIP を削除しないようにしました。
+- アプリ全体の未処理例外ハンドラを追加しました。
+- 予期しないエラー時にユーザー向けメッセージを表示し、アプリデータの `logs` フォルダーへクラッシュログを保存します。
+
+#### ローカライズとターゲット
+
+- cleanup 系ダイアログに残っていた直接 `L("Japanese", "English")` 方式の文字列を共通ローカライズリソースキーへ移しました。
+- アプリ本体とテストプロジェクトを `net10.0-windows` から `net8.0-windows` へ変更し、LTS ベースでのビルド、CI、配布をしやすくしました。
+
+#### ドキュメント
+
+- README を v1.0.8 向けに更新しました。
+- リリースノートを v1.0.8 向けに更新しました。
+- 既存フォーマットを踏襲しつつ、英日マニュアルを現行機能と安全性に合わせて網羅的に書き直しました。
 
 ### v1.0.7
 
@@ -228,9 +288,6 @@
 - CSV列追加、タグファインダーからの CSV 保存、レイアウトデザイナーの CSV プレビュー保存、重複整理、CSV マージのバックアップ名を統一しました。
 - CSV バックアップは `products.csv.bak-20260608-142530` のような日時付き形式になりました。
 - 設定メニューに **バックアップファイル整理** を追加しました。
-  - 日時付き CSV バックアップを一覧表示します。
-  - 保持日数と CSV ごとの最大件数で古いバックアップや余分なバックアップを整理できます。
-  - 削除対象はゴミ箱へ移動します。
 - 起動時フォルダーを設定・変更した際、確認後にバックアップファイル整理の対象フォルダーも合わせて更新できるようにしました。
 
 #### タグファインダーとキュー運用
@@ -238,132 +295,79 @@
 - タグファインダーの小型プレビューから **レイアウトデザイナーで開く** を追加しました。
 - `trueのみ` 表示中のキュー作成は、表示中の全チェック行ではなく現在対象の行に対して行うようにしました。
 - 保存系操作とキュー作成系操作のあと、印刷枚数を `1` に戻すようにしました。
-- タグファインダーを閉じる際、未使用のキュー CSV があれば整理確認できるようにしました。
+- タグファインダーを閉じるとき、未使用のキュー CSV があれば整理確認できるようにしました。
 
 #### CSV マージ安定性
 
-- 同じフォルダーに列数の違う CSV があると、正しい親 CSV を選んでいても `親CSVの読み込みに失敗しました。` になる問題を修正しました。
-- CSV マージのプレビューでは、ファイルが読めるかどうかと、親 CSV とヘッダー一致するかどうかを分けて判定するようにしました。
-
-#### ドキュメント
-
-- アプリバージョンを v1.0.5 に更新しました。
-- README、リリースノート、英日マニュアルを更新しました。
+- 同じフォルダー内に列数の違う CSV があっても、有効な親 CSV を選べばプレビューできるようにしました。
+- マージ対象判定を、読み込み可否と親 CSV とのヘッダー一致に基づくよう整理しました。
 
 ### v1.0.4
 
 #### 出力安定性
 
 - 直接印刷、PDF 保存、PNG 保存に進捗ダイアログを追加しました。
-- 長時間の直接印刷、PDF 保存、PNG 保存でキャンセルできるようにしました。
-- PDF/PNG は `.partial` ファイルへ一時保存してから、完成後に最終ファイルへ移動するようにしました。
-- PDF/PNG 保存をキャンセルした場合、その操作で作成された出力ファイルを削除します。
-- 直接印刷は 1 ページずつ描画し、全ページ画像をメモリに保持しないようにしました。
-- ページ単位の描画失敗時に、失敗したページ番号を確認できるようにしました。
+- 大量出力のキャンセルに対応しました。
+- PDF/PNG は `.partial` ファイルへ保存してから最終ファイルへ移動するようにしました。
+- キャンセル時は、その操作で作成された PDF/PNG を削除します。
+- 直接印刷は 1 ページずつ描画し、メモリ使用量を抑えるようにしました。
+- ページ単位の描画失敗にページ番号が出るようにしました。
 
 #### 大量印刷警告
 
-- 設定メニューで大量印刷警告のページしきい値を変更できるようにしました。
-- 設定メニュー上に現在のしきい値、または無効状態を表示するようにしました。
+- 設定メニューに大量印刷警告のしきい値を追加しました。
+- 設定メニュー名に現在のしきい値または無効状態が表示されます。
 
 #### CSV とレイアウト編集
 
 - メイン画面の CSV フィールドに **CSV列追加** を追加しました。
-  - 読み込み済みすべての CSV に新しい列を追加します。
-  - ヘッダー行に列名を書き込みます。
-  - CSV 上書き前に `.bak` バックアップを作成します。
-- テキスト系レイアウト要素で、行ごとの文字サイズ指定に対応しました。
-  - 固定の文字サイズ、または選択した CSV フィールドを文字サイズとして使えます。
-  - CSV の文字サイズ値が空、または不正な場合は固定の文字サイズへ戻ります。
-  - CSV から読んだ文字サイズは、要素の最小/最大範囲内に収めます。
-
-#### テストとドキュメント
-
-- 遅延ページ生成、選択列ソート、印刷対象なし、キャンセル時 PNG クリーンアップのサービス層テストを追加しました。
-- アプリバージョンを v1.0.4 に更新しました。
-- README、リリースノート、英日マニュアルを更新しました。
+- テキスト要素の文字サイズを CSV 列から行ごとに指定できるようにしました。
 
 ### v1.0.3
 
 #### 出力と印刷対象確認
 
-- PDF 保存、PNG 保存、直接印刷の前に表示できる「印刷対象の確認」ダイアログを追加しました。
-- CSV ごとの行数、タグ数、ページ数、現在の印刷順を確認できます。
-- 印刷対象の確認ダイアログに検索機能を追加しました。
-  - 順番、CSV、行、並び替え値、代表値で検索できます。
-  - 検索値欄で `Enter` を押すと検索します。
-  - 見つかった行へジャンプし、ハイライト表示します。
+- PDF/PNG/直接印刷の前に、任意で印刷対象確認ダイアログを表示できるようにしました。
+- CSV ごとの概要、行数、タグ数、ページ数、印刷順を確認できます。
+- 印刷対象確認ダイアログに検索を追加しました。
 - 設定メニューに **出力前に印刷対象を確認** を追加しました。
 
 #### 印刷順
 
-- メイン画面の出力エリアに印刷順の指定を追加しました。
+- メイン出力エリアに印刷順制御を追加しました。
 - 読み込み順、Item Code 順、選択列順に対応しました。
 
 #### タグファインダー
 
 - タグファインダーに小型プレビューを追加しました。
 - プレビュー表示のオン/オフを保持できるようにしました。
-- 印刷枚数の指定に対応しました。
-  - 印刷枚数 `1` は通常保存と同じ扱いです。
-  - 印刷枚数 `2` 以上では、親 CSV と同じフォルダーに `print_queue_yyyyMMdd_HHmmss.csv` を作成します。
-  - キュー CSV の行数は `印刷枚数 - 1` です。親 CSV の元行と合わせて指定枚数になります。
-- タグファインダーからキュー CSV を一括削除できるようにしました。
-- メイン画面の CSV 一覧でも、キュー CSV の右クリックメニューから削除できます。
-- タグファインダー起動時、検索値欄にカーソルが入るようにしました。
-
-#### リファクタリング
-
-- 印刷対象一覧の作成処理を `PrintTargetSummaryService` に分離しました。
-- タグファインダーの検索とチェック行取得を `TagFinderService` に分離しました。
-- 印刷対象確認とタグファインダー用のモデルを追加しました。
-
-#### ドキュメント
-
-- アプリバージョンを v1.0.3 に更新しました。
-- README を更新しました。
-- 既存の内容と画像を流用しながら、英語版/日本語版マニュアルを現行機能に合わせて作り直しました。
-- リリースノートを英語、次に日本語の順で再生成しました。
+- 印刷枚数とキュー CSV 作成に対応しました。
+- タグファインダーとメイン CSV 一覧からキュー CSV を整理できるようにしました。
 
 ### v1.0.2
 
 #### レイアウトデザイナー
 
-- レイアウトデザイナーのキャンバス上のテキスト直接編集を改善しました。
-- 直接編集時の入力欄フォントサイズを、キャンバス上に表示されている文字サイズに近づけました。
-- 直接編集時のキー操作を変更しました。
-  - `Enter` で確定します。
-  - `Shift + Enter` で改行します。
-  - `Esc` でキャンセルします。
-
-#### ドキュメント
-
-- README を v1.0.2 向けに更新しました。
-- 英語版/日本語版マニュアルを v1.0.2 向けに更新しました。
-- 日本語 README と日本語マニュアルの文字化けを整理しました。
+- レイアウトデザイナーのキャンバス上での直接テキスト編集を改善しました。
+- 編集ボックスの文字サイズを、描画されるキャンバス上の文字サイズに近づけました。
+- 直接テキスト編集の操作を `Enter` で確定、`Shift + Enter` で改行、`Esc` でキャンセルに変更しました。
 
 ### v1.0.1
 
 #### プレビュー
 
-- メイン画面の **1枚拡大** プレビューの解像度を改善しました。
-- **ページ全体** 表示では **前へ** / **次へ** がページ単位で移動します。
-- **1枚拡大** 表示では **前へ** / **次へ** が印刷対象タグ単位で移動します。
+- メイン画面の **単票プレビュー** の解像度を改善しました。
+- **ページプレビュー** では **前へ/次へ** がページ単位で移動します。
+- **単票プレビュー** では **前へ/次へ** が印刷対象タグ単位で移動します。
 
 #### レイアウトデザイナー
 
-- レイアウトデザイナーのキャンバス右下に縦並びの表示サイズ操作ボタンを追加しました。
-  - **拡大**
-  - **標準**
-  - **縮小**
-- **拡大** は上部セパレーターを 10% ずつ上へ移動し、最大 +50% まで拡大できます。
-- **縮小** は上部セパレーターを 10% ずつ下へ移動し、最小 -40% まで縮小できます。
-- **標準** はセパレーター位置を初期位置に戻します。
+- レイアウトデザイナーのキャンバス右下に表示領域を調整する縦ボタンを追加しました。
 
 ### v1.0.0
 
 #### 出力前チェック
 
-- 推奨サイズ未満のバーコード要素を、ブロックエラーではなく警告として扱うようにしました。
-- ブロック対象のエラーがない場合、警告確認後に PDF/PNG 保存を継続できます。
-- データやレイアウトの問題で無効な出力になる可能性が高い場合は、引き続きブロックエラーとして出力を停止します。
+- 小さすぎるバーコード要素をブロックエラーではなく警告として扱うようにしました。
+- ブロックエラーがない場合、警告を確認すれば PDF/PNG 出力を続行できます。
+- データやレイアウトに重大な問題がある場合は、引き続き出力を停止します。

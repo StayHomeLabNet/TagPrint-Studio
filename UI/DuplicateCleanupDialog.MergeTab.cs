@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
@@ -31,14 +31,14 @@ internal sealed partial class DuplicateCleanupDialog : Form
 
         mergeFolderBox = new TextBox { Dock = DockStyle.Fill, ReadOnly = true, Margin = new Padding(4, 2, 8, 0) };
         parentCsvCombo = Combo();
-        deleteMergedSourcesCheck = TopCheckBox(L("マージ後に不要CSVをゴミ箱に移動", "Move merged source CSVs to Recycle Bin"), settings.LastMergeDeleteSourceFiles, 320);
+        deleteMergedSourcesCheck = TopCheckBox(LocalizationService.T("duplicateCleanup.moveMergedSourceCsvsToRecycleBin"), settings.LastMergeDeleteSourceFiles, 320);
         deleteMergedSourcesCheck.CheckedChanged += (_, _) => settings.LastMergeDeleteSourceFiles = deleteMergedSourcesCheck.Checked;
-        deleteMergeBakCheck = TopCheckBox(L("マージ後にbakファイルをゴミ箱に移動", "Move bak file to Recycle Bin after merge"), settings.LastMergeDeleteBakFiles, 320);
+        deleteMergeBakCheck = TopCheckBox(LocalizationService.T("duplicateCleanup.moveBakFileToRecycleBinAfterMerge"), settings.LastMergeDeleteBakFiles, 320);
         deleteMergeBakCheck.CheckedChanged += (_, _) => settings.LastMergeDeleteBakFiles = deleteMergeBakCheck.Checked;
         deleteMergeBakCheck.Margin = new Padding(25, 2, 12, 2);
-        var browseFolderButton = Button(L("参照...", "Browse..."), (_, _) => BrowseMergeFolder());
-        var reloadButton = Button(L("再読込", "Reload"), (_, _) => ReloadMergeFolderFiles());
-        var previewButton = Button(L("プレビュー", "Preview"), async (_, _) => await PreviewMergeAsync(), primary: true);
+        var browseFolderButton = Button(LocalizationService.T("duplicateCleanup.browse"), (_, _) => BrowseMergeFolder());
+        var reloadButton = Button(LocalizationService.T("duplicateCleanup.reload"), (_, _) => ReloadMergeFolderFiles());
+        var previewButton = Button(LocalizationService.T("duplicateCleanup.preview"), async (_, _) => await PreviewMergeAsync(), primary: true);
         var mergeOptionRow = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -49,12 +49,12 @@ internal sealed partial class DuplicateCleanupDialog : Form
         mergeOptionRow.Controls.Add(deleteMergedSourcesCheck);
         mergeOptionRow.Controls.Add(deleteMergeBakCheck);
 
-        top.Controls.Add(TopLabel(L("対象フォルダー", "Target Folder")), 0, 0);
+        top.Controls.Add(TopLabel(LocalizationService.T("duplicateCleanup.targetFolder")), 0, 0);
         top.Controls.Add(mergeFolderBox, 1, 0);
         top.SetColumnSpan(mergeFolderBox, 3);
         top.Controls.Add(browseFolderButton, 4, 0);
         top.Controls.Add(reloadButton, 5, 0);
-        top.Controls.Add(TopLabel(L("親CSV", "Parent CSV")), 0, 1);
+        top.Controls.Add(TopLabel(LocalizationService.T("duplicateCleanup.parentCsv")), 0, 1);
         top.Controls.Add(parentCsvCombo, 1, 1);
         top.SetColumnSpan(parentCsvCombo, 5);
         top.Controls.Add(previewButton, 7, 1);
@@ -75,12 +75,12 @@ internal sealed partial class DuplicateCleanupDialog : Form
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AllowUserToResizeRows = false
         };
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.RoleText), L("対象", "Role"), 70));
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.FileName), L("ファイル名", "File Name"), 200));
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.RowCount), L("行数", "Rows"), 70));
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.HeaderMatchText), L("ヘッダー", "Header"), 100));
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.Status), L("状態", "Status"), 110));
-        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.Note), L("備考", "Note"), 320));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.RoleText), LocalizationService.T("duplicateCleanup.role"), 70));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.FileName), LocalizationService.T("duplicateCleanup.fileName"), 200));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.RowCount), LocalizationService.T("duplicateCleanup.rows"), 70));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.HeaderMatchText), LocalizationService.T("duplicateCleanup.header"), 100));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.Status), LocalizationService.T("duplicateCleanup.status"), 110));
+        mergeGrid.Columns.Add(TextColumn(nameof(CsvMergeCandidate.Note), LocalizationService.T("duplicateCleanup.note"), 320));
         root.Controls.Add(mergeGrid, 0, 1);
 
         var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, BackColor = Color.White, Padding = new Padding(10) };
@@ -89,7 +89,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
         bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         mergeSummaryLabel = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(75, 85, 99) };
         UpdateMergeSummary(null);
-        var mergeApplyButton = Button(L("実行", "Run"), async (_, _) => await ApplyMergeAsync(), primary: true);
+        var mergeApplyButton = Button(LocalizationService.T("duplicateCleanup.run"), async (_, _) => await ApplyMergeAsync(), primary: true);
         var closeButton = Button(LocalizationService.T("common.close"), (_, _) => CloseDialog());
         bottom.Controls.Add(mergeSummaryLabel, 0, 0);
         bottom.Controls.Add(mergeApplyButton, 1, 0);
@@ -187,7 +187,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
     {
         if (parentCsvCombo.SelectedItem is not CsvPathItem parent)
         {
-            MessageBox.Show(L("親CSVを選択してください。", "Please choose a parent CSV."), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(LocalizationService.T("duplicateCleanup.pleaseChooseAParentCsv"), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -230,34 +230,34 @@ internal sealed partial class DuplicateCleanupDialog : Form
     {
         if (lastMergePreview is null)
         {
-            MessageBox.Show(L("先にプレビューを実行してください。", "Please run preview first."), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(LocalizationService.T("duplicateCleanup.pleaseRunPreviewFirst"), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         if (lastMergePreview.AppendFileCount == 0)
         {
-            MessageBox.Show(L("追加対象のCSVがありません。", "There are no CSV files to append."), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(LocalizationService.T("duplicateCleanup.thereAreNoCsvFilesToAppend"), LocalizationService.T("common.appTitle"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         var message = string.Format(
-            L("{1}件のCSVから {2} 行を {0} に追加します。よろしいですか？", "Append {2} row(s) from {1} CSV file(s) into {0}?"),
+            LocalizationService.T("duplicateCleanup.append2RowSFrom1CsvFileSInto0"),
             lastMergePreview.ParentFileName,
             lastMergePreview.AppendFileCount,
             lastMergePreview.AppendRowCount);
         if (lastMergePreview.SkipFileCount > 0)
         {
-            message += Environment.NewLine + string.Format(L("{0}件のCSVはスキップされます。", "{0} CSV file(s) will be skipped."), lastMergePreview.SkipFileCount);
+            message += Environment.NewLine + string.Format(LocalizationService.T("duplicateCleanup.0CsvFileSWillBeSkipped"), lastMergePreview.SkipFileCount);
         }
         if (deleteMergedSourcesCheck.Checked)
         {
             var csvNames = string.Join(", ", lastMergePreview.AppendFilePaths.Select(Path.GetFileName));
-            message += Environment.NewLine + string.Format(L("ゴミ箱へ移動するCSV: {0}", "CSV files moved to Recycle Bin: {0}"), csvNames);
+            message += Environment.NewLine + string.Format(LocalizationService.T("duplicateCleanup.csvFilesMovedToRecycleBin0"), csvNames);
         }
         if (deleteMergeBakCheck.Checked)
         {
             var bakName = Path.GetFileName(lastMergePreview.ParentCsvPath) + ".bak-yyyymmdd-hhmmss";
-            message += Environment.NewLine + string.Format(L("ゴミ箱へ移動するbak: {0}", "bak file moved to Recycle Bin: {0}"), bakName);
+            message += Environment.NewLine + string.Format(LocalizationService.T("duplicateCleanup.bakFileMovedToRecycleBin0"), bakName);
         }
 
         if (MessageBox.Show(message, LocalizationService.T("common.confirm"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
@@ -289,10 +289,9 @@ internal sealed partial class DuplicateCleanupDialog : Form
     private void UpdateMergeSummary(CsvMergePreview? preview)
     {
         mergeSummaryLabel.Text = preview is null
-            ? L("親CSVを選んでプレビューを実行してください。", "Choose a parent CSV and run preview.")
+            ? LocalizationService.T("duplicateCleanup.chooseAParentCsvAndRunPreview")
             : string.Format(
-                L("親CSV: {0}  追加CSV: {1}  追加行数: {2}  スキップ: {3}  結果行数: {4}",
-                    "Parent: {0}  Append Files: {1}  Append Rows: {2}  Skip: {3}  Result Rows: {4}"),
+                LocalizationService.T("duplicateCleanup.parent0AppendFiles1AppendRows2Skip3ResultRows4"),
                 preview.ParentFileName,
                 preview.AppendFileCount,
                 preview.AppendRowCount,

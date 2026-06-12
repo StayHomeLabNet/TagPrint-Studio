@@ -20,7 +20,7 @@ internal sealed class BackupCleanupDialog : Form
     {
         this.service = service;
 
-        Text = L("バックアップファイル整理", "Clean Up Backup Files");
+        Text = LocalizationService.T("backupCleanup.cleanUpBackupFiles");
         Width = 900;
         Height = 620;
         MinimumSize = new Size(760, 500);
@@ -90,19 +90,19 @@ internal sealed class BackupCleanupDialog : Form
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
 
-        var browseButton = DialogButton(L("参照...", "Browse..."));
+        var browseButton = DialogButton(LocalizationService.T("backupCleanup.browse"));
         browseButton.Click += (_, _) => BrowseFolder();
-        var previewButton = DialogButton(L("再検出", "Refresh"), primary: true);
+        var previewButton = DialogButton(LocalizationService.T("backupCleanup.refresh"), primary: true);
         previewButton.Click += (_, _) => RefreshPreview();
 
-        panel.Controls.Add(RowLabel(L("対象フォルダー", "Target Folder")), 0, 0);
+        panel.Controls.Add(RowLabel(LocalizationService.T("backupCleanup.targetFolder")), 0, 0);
         panel.Controls.Add(folderBox, 1, 0);
         panel.Controls.Add(browseButton, 2, 0);
         panel.Controls.Add(previewButton, 5, 0);
 
-        panel.Controls.Add(RowLabel(L("保持日数", "Keep Days")), 0, 1);
+        panel.Controls.Add(RowLabel(LocalizationService.T("backupCleanup.keepDays")), 0, 1);
         panel.Controls.Add(retentionDaysBox, 1, 1);
-        panel.Controls.Add(RowLabel(L("CSVごとの保持数", "Keep per CSV")), 3, 1);
+        panel.Controls.Add(RowLabel(LocalizationService.T("backupCleanup.keepPerCsv")), 3, 1);
         panel.Controls.Add(maxCountBox, 4, 1);
         return panel;
     }
@@ -118,8 +118,9 @@ internal sealed class BackupCleanupDialog : Form
             BackColor = Color.White
         };
         var closeButton = DialogButton(LocalizationService.T("common.close"));
+        closeButton.DialogResult = DialogResult.Cancel;
         closeButton.Click += (_, _) => Close();
-        var cleanupButton = DialogButton(L("整理を実行", "Clean Up"), primary: true, width: 118);
+        var cleanupButton = DialogButton(LocalizationService.T("backupCleanup.cleanUp"), primary: true, width: 118);
         cleanupButton.Click += (_, _) => Cleanup();
 
         buttons.Controls.Add(closeButton);
@@ -143,11 +144,11 @@ internal sealed class BackupCleanupDialog : Form
             SelectionMode = DataGridViewSelectionMode.FullRowSelect
         };
 
-        grid.Columns.Add(CheckColumn("DeleteCandidate", L("削除", "Delete"), 58));
-        grid.Columns.Add(TextColumn("FileName", L("ファイル名", "File Name"), 260));
-        grid.Columns.Add(TextColumn("SourceCsvName", L("元CSV", "Source CSV"), 180));
-        grid.Columns.Add(TextColumn("LastWriteTime", L("更新日時", "Modified"), 150));
-        grid.Columns.Add(TextColumn("SizeBytes", L("サイズ", "Size"), 90));
+        grid.Columns.Add(CheckColumn("DeleteCandidate", LocalizationService.T("backupCleanup.delete"), 58));
+        grid.Columns.Add(TextColumn("FileName", LocalizationService.T("backupCleanup.fileName"), 260));
+        grid.Columns.Add(TextColumn("SourceCsvName", LocalizationService.T("backupCleanup.sourceCsv"), 180));
+        grid.Columns.Add(TextColumn("LastWriteTime", LocalizationService.T("backupCleanup.modified"), 150));
+        grid.Columns.Add(TextColumn("SizeBytes", LocalizationService.T("backupCleanup.size"), 90));
         return grid;
     }
 
@@ -169,15 +170,17 @@ internal sealed class BackupCleanupDialog : Form
         {
             preview = service.Preview(FolderPath, RetentionDays, MaxCountPerCsv);
             grid.DataSource = preview.Files.Select(file => new BackupCleanupGridRow(file)).ToList();
-            summaryLabel.Text = L(
-                $"検出: {preview.TotalCount} 件 / 削除候補: {preview.DeleteCount} 件 / {FormatBytes(preview.DeleteBytes)}",
-                $"Found: {preview.TotalCount} / To delete: {preview.DeleteCount} / {FormatBytes(preview.DeleteBytes)}");
+            summaryLabel.Text = LocalizationService.T(
+                "backupCleanup.previewSummary",
+                preview.TotalCount,
+                preview.DeleteCount,
+                FormatBytes(preview.DeleteBytes));
         }
         catch (Exception ex)
         {
             preview = null;
             grid.DataSource = null;
-            summaryLabel.Text = L("対象フォルダーを確認してください。", "Check the target folder.");
+            summaryLabel.Text = LocalizationService.T("backupCleanup.checkTheTargetFolder");
             MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
@@ -192,7 +195,7 @@ internal sealed class BackupCleanupDialog : Form
         if (preview is null || preview.DeleteCount == 0)
         {
             MessageBox.Show(
-                L("削除候補はありません。", "There are no backup files to delete."),
+                LocalizationService.T("backupCleanup.thereAreNoBackupFilesToDelete"),
                 Text,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -200,9 +203,7 @@ internal sealed class BackupCleanupDialog : Form
         }
 
         var confirm = MessageBox.Show(
-            L(
-                $"{preview.DeleteCount} 件のバックアップファイルをゴミ箱へ移動します。続行しますか？",
-                $"Move {preview.DeleteCount} backup file(s) to the Recycle Bin?"),
+            LocalizationService.T("backupCleanup.confirmMoveToRecycleBin", preview.DeleteCount),
             LocalizationService.T("common.confirm"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning);
@@ -212,11 +213,12 @@ internal sealed class BackupCleanupDialog : Form
         {
             var result = service.Cleanup(preview);
             MessageBox.Show(
-                L($"{result.DeletedCount} 件をゴミ箱へ移動しました。", $"Moved {result.DeletedCount} file(s) to the Recycle Bin."),
+                LocalizationService.T("backupCleanup.movedToRecycleBin", result.DeletedCount),
                 Text,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
-            RefreshPreview();
+            DialogResult = DialogResult.OK;
+            Close();
         }
         catch (Exception ex)
         {
@@ -276,9 +278,6 @@ internal sealed class BackupCleanupDialog : Form
         if (kb < 1024) return $"{kb:0.#} KB";
         return $"{kb / 1024d:0.#} MB";
     }
-
-    private static string L(string japanese, string english) =>
-        LocalizationService.CurrentLanguage == TagPrintStudio.Enums.AppLanguage.Japanese ? japanese : english;
 
     private sealed class BackupCleanupGridRow(BackupFileCandidate file)
     {

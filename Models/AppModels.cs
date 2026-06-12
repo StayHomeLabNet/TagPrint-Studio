@@ -1,4 +1,4 @@
-﻿using TagPrintStudio.Enums;
+using TagPrintStudio.Enums;
 using System.Drawing.Printing;
 using System.Text.Json.Serialization;
 using TagPrintStudio.Services;
@@ -13,6 +13,7 @@ public class PresetFile
     public string Description { get; set; } = "";
     public bool HasHeaderRow { get; set; } = true;
     public string LayoutRef { get; set; } = "";
+    public string PrintTargetOrderColumnName { get; set; } = "tagPrintOrder";
     public List<FieldDefinition> Fields { get; set; } = [];
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

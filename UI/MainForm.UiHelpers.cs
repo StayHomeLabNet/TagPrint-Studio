@@ -407,6 +407,8 @@ public sealed partial class MainForm : Form
             "CSVファイル選択" => "main.button.selectCsv",
             "CSV選択/追加" => "main.button.selectCsv",
             "フォルダー選択" => "main.button.selectFolder",
+            "重複整理" => "duplicateCleanup.duplicateCleanup",
+            "タグ検索" => "main.button.tagFinder",
             "CSV読み込み" => "main.section.csvImport",
             "前へ" => "main.button.previous",
             "次へ" => "main.button.next",

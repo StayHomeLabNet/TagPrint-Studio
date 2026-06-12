@@ -22,6 +22,7 @@ public sealed class OutputOptionsFactory : IOutputOptionsFactory
             PrintScalingMode = state.PrintScalingMode,
             PrintSortMode = state.PrintSortMode,
             PrintSortFieldId = state.PrintSortFieldId,
+            PrintTargetOrderColumnName = state.PrintTargetOrderColumnName,
             PrintSortValueType = state.PrintSortValueType,
             PrintOffsetXmm = state.PrintOffsetXmm,
             PrintOffsetYmm = state.PrintOffsetYmm

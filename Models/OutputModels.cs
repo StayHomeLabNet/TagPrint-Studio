@@ -14,6 +14,7 @@ public class OutputOptions
     public PrintScalingMode PrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
     public PrintSortMode PrintSortMode { get; set; } = PrintSortMode.LoadOrder;
     public string PrintSortFieldId { get; set; } = "";
+    public string PrintTargetOrderColumnName { get; set; } = "tagPrintOrder";
     public PrintSortValueType PrintSortValueType { get; set; } = PrintSortValueType.Text;
     public double PrintOffsetXmm { get; set; }
     public double PrintOffsetYmm { get; set; }
@@ -32,6 +33,7 @@ public class OutputSelectionState
     public PrintScalingMode PrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
     public PrintSortMode PrintSortMode { get; set; } = PrintSortMode.LoadOrder;
     public string PrintSortFieldId { get; set; } = "";
+    public string PrintTargetOrderColumnName { get; set; } = "tagPrintOrder";
     public PrintSortValueType PrintSortValueType { get; set; } = PrintSortValueType.Text;
     public double PrintOffsetXmm { get; set; }
     public double PrintOffsetYmm { get; set; }

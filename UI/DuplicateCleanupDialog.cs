@@ -1,6 +1,5 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
-using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
 
@@ -101,7 +100,7 @@ internal sealed partial class DuplicateCleanupDialog : Form
 
     private void BuildUi()
     {
-        Text = L("CSV重複整理", "CSV Duplicate Cleanup");
+        Text = LocalizationService.T("duplicateCleanup.csvDuplicateCleanup");
         Width = 1320;
         Height = 720;
         MinimumSize = new Size(1240, 700);
@@ -113,11 +112,11 @@ internal sealed partial class DuplicateCleanupDialog : Form
 
         var tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(18, 6) };
 
-        var duplicateTab = new TabPage(L("重複整理", "Duplicate Cleanup")) { BackColor = BackColor };
+        var duplicateTab = new TabPage(LocalizationService.T("duplicateCleanup.duplicateCleanup")) { BackColor = BackColor };
         duplicateTab.Controls.Add(BuildDuplicateTab());
         tabs.TabPages.Add(duplicateTab);
 
-        var mergeTab = new TabPage(L("CSVマージ", "CSV Merge")) { BackColor = BackColor };
+        var mergeTab = new TabPage(LocalizationService.T("duplicateCleanup.csvMerge")) { BackColor = BackColor };
         mergeTab.Controls.Add(BuildMergeTab());
         tabs.TabPages.Add(mergeTab);
 

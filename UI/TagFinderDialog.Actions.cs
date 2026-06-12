@@ -93,14 +93,18 @@ public sealed partial class TagFinderDialog
             return false;
         }
 
+        if (!ConfirmCsvColumnAlignmentBeforeSave())
+        {
+            return false;
+        }
+
         tagFinderCsvService.SaveFlags(
             csvFiles,
             resultRows.Select(row => new TagFinderSaveSelection
             {
                 File = row.File,
                 RowIndex = row.RowIndex,
-                Checked = row.Checked,
-                WasChecked = IsRowChecked(row.File, row.RowIndex, FlagColumnName())
+                Checked = row.Checked
             }),
             FlagColumnName(),
             OrderColumnName(),
@@ -109,6 +113,61 @@ public sealed partial class TagFinderDialog
         CsvSaved = true;
         statusLabel.Text = T("tagFinder.message.flagsSaved");
         return true;
+    }
+
+    private bool ConfirmCsvColumnAlignmentBeforeSave()
+    {
+        var flagColumnName = FlagColumnName();
+        var orderColumnName = OrderColumnName();
+        var filesMissingRequiredColumns = csvFiles
+            .Where(file => !HasColumn(file, flagColumnName) || !HasColumn(file, orderColumnName))
+            .ToList();
+
+        if (filesMissingRequiredColumns.Count == 0)
+        {
+            return true;
+        }
+
+        var fileList = BuildFileList(filesMissingRequiredColumns);
+        var message = TF(
+            "tagFinder.confirm.saveAddsColumnsToAllCsv",
+            csvFiles.Count,
+            flagColumnName,
+            orderColumnName,
+            fileList);
+
+        return MessageBox.Show(
+            message,
+            Text,
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    }
+
+    private static bool HasColumn(CsvFileItem file, string columnName)
+    {
+        if (file.HeaderRow is not { Length: > 0 })
+        {
+            return false;
+        }
+
+        return file.HeaderRow.Any(header => string.Equals(header, columnName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string BuildFileList(IReadOnlyList<CsvFileItem> files)
+    {
+        const int maxDisplayFiles = 5;
+        var names = files
+            .Take(maxDisplayFiles)
+            .Select(file => $"- {file.FileName}")
+            .ToList();
+
+        if (files.Count > maxDisplayFiles)
+        {
+            names.Add(TF("tagFinder.message.moreFiles", files.Count - maxDisplayFiles));
+        }
+
+        return string.Join(Environment.NewLine, names);
     }
 
     private List<TagFinderResultRow> QueueTargets()
@@ -315,7 +374,7 @@ public sealed partial class TagFinderDialog
 
     private static bool IsRowChecked(CsvFileItem file, int rowIndex, string flagColumnName)
     {
-        var flagIndex = FindHeaderIndex(file, flagColumnName);
+        var flagIndex = CsvHeaderResolver.FindIndex(file, flagColumnName);
         return flagIndex >= 0
             && rowIndex >= 0
             && rowIndex < file.Rows.Count
@@ -342,22 +401,4 @@ public sealed partial class TagFinderDialog
         });
     }
 
-    private static int FindHeaderIndex(CsvFileItem file, string columnName)
-    {
-        if (file.HeaderRow is not { Length: > 0 }) return -1;
-        return IndexOfHeader(file.HeaderRow, columnName);
-    }
-
-    private static int IndexOfHeader(string[] header, string columnName)
-    {
-        for (var i = 0; i < header.Length; i++)
-        {
-            if (string.Equals(header[i], columnName, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
 }

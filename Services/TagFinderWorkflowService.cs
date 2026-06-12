@@ -41,7 +41,7 @@ public sealed class TagFinderWorkflowService : ITagFinderWorkflowService
         {
             if (!CsvFileUtility.IsPrintQueueCsv(file.FilePath)) continue;
 
-            var flagIndex = FindHeaderIndex(file, flagColumnName);
+            var flagIndex = CsvHeaderResolver.FindIndex(file, flagColumnName);
             var hasPrintableRow = flagIndex >= 0 && file.Rows.Any(row => IsTrue(ValueAt(row, flagIndex)));
             if (!hasPrintableRow)
             {
@@ -50,20 +50,6 @@ public sealed class TagFinderWorkflowService : ITagFinderWorkflowService
         }
     }
 
-    private static int FindHeaderIndex(CsvFileItem file, string columnName)
-    {
-        if (file.HeaderRow is not { Length: > 0 }) return -1;
-
-        for (var i = 0; i < file.HeaderRow.Length; i++)
-        {
-            if (string.Equals(file.HeaderRow[i], columnName, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
 
     private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] : "";
 

@@ -4,6 +4,7 @@ using System.Text;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
+using TagPrintStudio.UI;
 
 namespace TagPrintStudio.Tests;
 
@@ -70,6 +71,88 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void OutputOptionsFactory_Create_CopiesPrintTargetOrderColumnName()
+    {
+        var state = new OutputSelectionState
+        {
+            PrintTargetOrderColumnName = "myPrintOrder"
+        };
+
+        var options = new OutputOptionsFactory().Create(state, OutputFormatType.Pdf);
+
+        Assert.Equal("myPrintOrder", options.PrintTargetOrderColumnName);
+    }
+
+    [Fact]
+    public void PresetFile_RoundTripsPrintTargetOrderColumnName()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.DirectoryPath);
+        var path = Path.Combine(temp.DirectoryPath, "custom.tpspreset");
+        var preset = Preset(Field("name", "Name", 0));
+        preset.PrintTargetOrderColumnName = "myPrintOrder";
+
+        JsonFile.Save(path, preset);
+        var loaded = JsonFile.Load<PresetFile>(path);
+
+        Assert.Equal("myPrintOrder", loaded.PrintTargetOrderColumnName);
+    }
+
+    [Fact]
+    public void OutputService_Pages_PrintTargetOrderSort_UsesCustomOrderColumnNameFromOptionsPath()
+    {
+        var service = new OutputService(new FixedRowsPerPageRenderer(10), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("custom_order", "myPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var csv = Csv("items.csv", ["A", "true", "30"], ["B", "true", "10"], ["C", "true", "20"]);
+        csv.HeaderRow = ["Item Code", "tagPrint", "myPrintOrder"];
+
+        var pages = InvokePages(
+                service,
+                layout,
+                preset,
+                [csv],
+                PrintSortMode.PrintTargetOrder,
+                printTargetOrderColumnName: "myPrintOrder")
+            .ToList();
+
+        Assert.Single(pages);
+        Assert.Equal(["B", "C", "A"], pages[0].Select(row => row["item"]));
+    }
+
+    [Fact]
+    public void OutputService_ExportPngIndividualRows_UsesCustomPrintTargetOrderColumnNameFromOptions()
+    {
+        using var temp = new TempDirectory();
+        var renderer = new RecordingRenderer(rowsPerPage: 10);
+        var service = new OutputService(renderer, new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("custom_order", "myPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var csv = Csv("items.csv", ["A", "true", "30"], ["B", "true", "10"], ["C", "true", "20"]);
+        csv.HeaderRow = ["Item Code", "tagPrint", "myPrintOrder"];
+        var options = Options(OutputFormatType.Png, OutputScopeType.IndividualPngPerRow);
+        options.OutputFolder = Path.Combine(temp.DirectoryPath, "exports");
+        options.PrintSortMode = PrintSortMode.PrintTargetOrder;
+        options.PrintTargetOrderColumnName = "myPrintOrder";
+
+        service.ExportPng(layout, preset, [csv], options);
+
+        Assert.Equal(["B", "C", "A"], renderer.SingleTagRows.Select(row => row["item"]));
+    }
+
+    [Fact]
     public void OutputService_PlansIndividualPngPathsOnlyForRowsMatchingCondition()
     {
         var service = new OutputService(new FixedRowsPerPageRenderer(10), new UnitConversionService());
@@ -116,6 +199,190 @@ public sealed partial class ServiceTests
 
         Assert.Equal(["first.pdf", "second.pdf"], separate);
         Assert.Equal(["TagPrintStudio_Output.pdf"], combined);
+    }
+
+
+    [Fact]
+    public void OutputService_PlansSeparatePdfPathsOnlyForCsvFilesWithPrintableRows()
+    {
+        var service = new OutputService(new FixedRowsPerPageRenderer(2), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(new FieldDefinition
+        {
+            FieldId = "price",
+            DisplayName = "価格",
+            ColumnIndex = 0,
+            Enabled = true,
+            PrintConditionEnabled = true,
+            PrintConditionType = PrintConditionType.Number,
+            PrintConditionOperator = PrintConditionOperator.GreaterThanOrEqual,
+            PrintConditionValue = "100"
+        });
+        var files = new List<CsvFileItem>
+        {
+            Csv("skip.csv", ["80"]),
+            Csv("print.csv", ["120"])
+        };
+
+        var paths = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Pdf, OutputScopeType.SeparatePdfPerCsv))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.Equal(["print.pdf"], paths);
+    }
+
+    [Fact]
+    public void OutputService_PlansNoPdfPathWhenThereAreNoPrintableRows()
+    {
+        var service = new OutputService(new FixedRowsPerPageRenderer(2), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(new FieldDefinition
+        {
+            FieldId = "price",
+            DisplayName = "価格",
+            ColumnIndex = 0,
+            Enabled = true,
+            PrintConditionEnabled = true,
+            PrintConditionType = PrintConditionType.Number,
+            PrintConditionOperator = PrintConditionOperator.GreaterThanOrEqual,
+            PrintConditionValue = "100"
+        });
+        var files = new List<CsvFileItem>
+        {
+            Csv("skip.csv", ["80"])
+        };
+
+        var separate = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Pdf, OutputScopeType.SeparatePdfPerCsv));
+        var combined = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Pdf, OutputScopeType.SinglePdfAllCsv));
+
+        Assert.Empty(separate);
+        Assert.Empty(combined);
+    }
+
+
+    [Fact]
+    public void OutputService_PlansUniquePdfPathsForSameCsvFileNamesFromDifferentFolders()
+    {
+        var service = new OutputService(new FixedRowsPerPageRenderer(2), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(Field("name", "商品名", 0));
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(Path.Combine("A", "items.csv"), ["Name"], ["A"]),
+            CsvFile(Path.Combine("B", "items.csv"), ["Name"], ["B"])
+        };
+
+        var paths = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Pdf, OutputScopeType.SeparatePdfPerCsv))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.Equal(["items.pdf", "items_2.pdf"], paths);
+    }
+
+    [Fact]
+    public void OutputService_PlansUniquePngPathsForSameCsvFileNamesFromDifferentFolders()
+    {
+        var service = new OutputService(new FixedRowsPerPageRenderer(2), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(Field("name", "商品名", 0));
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(Path.Combine("A", "items.csv"), ["Name"], ["A"], ["B"], ["C"]),
+            CsvFile(Path.Combine("B", "items.csv"), ["Name"], ["D"], ["E"], ["F"])
+        };
+
+        var pagedPaths = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Png, OutputScopeType.SinglePdfAllCsv))
+            .Select(Path.GetFileName)
+            .ToList();
+        var rowPaths = service.GetPlannedOutputPaths(layout, preset, files, Options(OutputFormatType.Png, OutputScopeType.IndividualPngPerRow))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.Equal(["items_page_001.png", "items_page_002.png", "items_2_page_001.png", "items_2_page_002.png"], pagedPaths);
+        Assert.Equal(["items_0001.png", "items_0002.png", "items_0003.png", "items_2_0001.png", "items_2_0002.png", "items_2_0003.png"], rowPaths);
+    }
+
+    [Fact]
+    public void PrintTargetSummaryService_GroupsSameCsvFileNamesByPath()
+    {
+        var service = new PrintTargetSummaryService();
+        var layout = Layout();
+        var preset = Preset(Field("name", "Name", 0));
+        var files = new List<CsvFileItem>
+        {
+            CsvFile(Path.Combine("A", "items.csv"), ["Name"], ["A1"], ["A2"]),
+            CsvFile(Path.Combine("B", "items.csv"), ["Name"], ["B1"])
+        };
+
+        var result = service.Build(
+            layout,
+            preset,
+            files,
+            Options(OutputFormatType.Pdf, OutputScopeType.SinglePdfAllCsv),
+            hasHeaderRow: true,
+            rowsPerPage: 10);
+
+        Assert.Equal(3, result.TotalTags);
+        Assert.Equal(2, result.CsvCount);
+        Assert.Equal(["items.csv", "items.csv"], result.CsvSummaries.Select(row => row.CsvName).ToList());
+        Assert.Equal([2, 1], result.CsvSummaries.Select(row => row.RowCount).ToList());
+        Assert.Equal([1, 3], result.CsvSummaries.Select(row => row.FirstOrder).ToList());
+        Assert.Equal([2, 3], result.CsvSummaries.Select(row => row.LastOrder).ToList());
+    }
+
+    [Fact]
+    public void PrintTargetSummaryService_PrintTargetOrderSort_ShowsCustomOrderColumnAsSortValue()
+    {
+        var service = new PrintTargetSummaryService();
+        var layout = Layout();
+        var preset = Preset(Field("name", "Name", 0));
+        var files = new List<CsvFileItem>
+        {
+            CsvFile("items.csv", ["Name", "printOrder"], ["A", "10"], ["B", "1"], ["C", "2"])
+        };
+        var options = Options(OutputFormatType.Pdf, OutputScopeType.SinglePdfAllCsv);
+        options.PrintSortMode = PrintSortMode.PrintTargetOrder;
+        options.PrintTargetOrderColumnName = "printOrder";
+
+        var result = service.Build(
+            layout,
+            preset,
+            files,
+            options,
+            hasHeaderRow: true,
+            rowsPerPage: 10);
+
+        Assert.Equal(["1", "2", "10"], result.OrderedRows.Select(row => row.SortValue).ToList());
+        Assert.Equal(["B", "C", "A"], result.OrderedRows.Select(row => row.KeyValue).ToList());
+    }
+
+    [Fact]
+    public void MainForm_LoadQueueCsvFolder_AddsOnlyCreatedQueueCsv()
+    {
+        using var temp = new TempDirectory();
+        var queuePath = temp.WriteText("print_queue_20260612_120000.csv", "Code\r\nA\r\n", Encoding.UTF8);
+        var unrelatedPath = temp.WriteText("items.csv", "Code\r\nB\r\n", Encoding.UTF8);
+
+        var paths = MainForm.ResolveQueueCsvLoadPaths(queuePath, out var append);
+
+        Assert.True(append);
+        var onlyPath = Assert.Single(paths);
+        Assert.Equal(queuePath, onlyPath);
+        Assert.DoesNotContain(unrelatedPath, paths);
+    }
+
+    [Fact]
+    public void MainForm_LoadQueueCsvFolder_LoadsWholeFolderWhenFolderPathIsProvided()
+    {
+        using var temp = new TempDirectory();
+        var firstPath = temp.WriteText("a.csv", "Code\r\nA\r\n", Encoding.UTF8);
+        var secondPath = temp.WriteText("b.csv", "Code\r\nB\r\n", Encoding.UTF8);
+        temp.WriteText("notes.txt", "ignore", Encoding.UTF8);
+
+        var paths = MainForm.ResolveQueueCsvLoadPaths(temp.DirectoryPath, out var append);
+
+        Assert.False(append);
+        Assert.Equal([firstPath, secondPath], paths);
     }
 
     [Fact]
@@ -208,6 +475,44 @@ public sealed partial class ServiceTests
 
         Assert.Empty(Directory.EnumerateFiles(outputFolder, "*.png"));
         Assert.Empty(Directory.EnumerateFiles(outputFolder, "*.partial"));
+    }
+
+    [Fact]
+    public void OutputService_ExportPng_RestoresExistingFilesWhenCanceledAfterOverwrite()
+    {
+        using var temp = new TempDirectory();
+        var outputFolder = System.IO.Path.Combine(temp.DirectoryPath, "exports");
+        Directory.CreateDirectory(outputFolder);
+        var existingPath = System.IO.Path.Combine(outputFolder, "items_0001.png");
+        File.WriteAllText(existingPath, "original file content", Encoding.UTF8);
+
+        var service = new OutputService(new FixedRowsPerPageRenderer(2), new UnitConversionService());
+        var layout = Layout();
+        var preset = Preset(Field("name", "Name", 0));
+        var csv = Csv("items.csv", ["A"], ["B"]);
+        var options = Options(OutputFormatType.Png, OutputScopeType.IndividualPngPerRow);
+        options.OutputFolder = outputFolder;
+        using var cancellation = new CancellationTokenSource();
+        var progress = new CancelAfterProgress(1, cancellation);
+
+        Assert.Throws<OperationCanceledException>(() => service.ExportPng(layout, preset, [csv], options, progress, cancellation.Token));
+
+        Assert.Equal("original file content", File.ReadAllText(existingPath, Encoding.UTF8));
+        Assert.Empty(Directory.EnumerateFiles(outputFolder, "*.partial-*"));
+        Assert.Empty(Directory.EnumerateFiles(outputFolder, "*.original-backup-*"));
+    }
+
+    [Fact]
+    public void OutputService_RestoreEntry_DoesNotDeleteExistingFileWhenBackupWasNotCreated()
+    {
+        using var temp = new TempDirectory();
+        var existingPath = temp.WriteText("existing.png", "original file content", Encoding.UTF8);
+        var backupPath = Path.Combine(temp.DirectoryPath, "missing-backup.png");
+
+        InvokeOutputFileTransactionRestoreEntry(existingPath, backupPath, hadExistingFile: true, backupCreated: false);
+
+        Assert.Equal("original file content", File.ReadAllText(existingPath, Encoding.UTF8));
+        Assert.False(File.Exists(backupPath));
     }
 
     [Theory]
@@ -344,6 +649,30 @@ public sealed partial class ServiceTests
         Assert.Equal(["B", "C", "A"], rows.Select(row => row[0]));
     }
 
+
+
+    [Fact]
+    public void PrintableRowService_PrintableRows_PrintTargetOrderSort_UsesCustomOrderColumnName()
+    {
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("my_print_order", "myPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var csv = Csv("items.csv", ["A", "true", "30"], ["B", "true", "10"], ["C", "true", "20"]);
+        csv.HeaderRow = ["Item Code", "tagPrint", "myPrintOrder"];
+
+        var rows = PrintableRowService.PrintableRows(
+            preset,
+            [csv],
+            PrintSortMode.PrintTargetOrder,
+            printTargetOrderColumnName: "myPrintOrder");
+
+        Assert.Equal(["B", "C", "A"], rows.Select(row => row[0]));
+    }
+
     [Fact]
     public void SettingsArchiveService_CreateBackup_IncludesSettingsFolders()
     {
@@ -364,6 +693,32 @@ public sealed partial class ServiceTests
         Assert.Contains("presets/default.tpspreset", entries);
         Assert.Contains("recent/recent.json", entries);
         Assert.Contains("settings/appsettings.json", entries);
+    }
+
+    [Fact]
+    public void SettingsArchiveService_CreateBackup_ReplacesExistingZipOnlyAfterTempArchiveIsCreated()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+
+        var zipPath = Path.Combine(temp.DirectoryPath, "backup.zip");
+        using (var oldArchive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var oldEntry = oldArchive.CreateEntry("old.txt");
+            using var writer = new StreamWriter(oldEntry.Open(), Encoding.UTF8);
+            writer.Write("old backup");
+        }
+
+        File.WriteAllText(Path.Combine(paths.Settings, "appsettings.json"), "new settings", Encoding.UTF8);
+
+        new SettingsArchiveService(paths).CreateBackup(zipPath);
+
+        using var archive = ZipFile.OpenRead(zipPath);
+        var entries = archive.Entries.Select(entry => entry.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("old.txt", entries);
+        Assert.Contains("settings/appsettings.json", entries);
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "backup.zip.tmp-*"));
     }
 
     [Fact]
@@ -426,6 +781,60 @@ public sealed partial class ServiceTests
         Assert.Equal("preset", File.ReadAllText(Path.Combine(targetPaths.Presets, "imported.tpspreset"), Encoding.UTF8));
         Assert.Equal("recent", File.ReadAllText(Path.Combine(targetPaths.Recent, "recent.json"), Encoding.UTF8));
         Assert.Equal("settings", File.ReadAllText(Path.Combine(targetPaths.Settings, "appsettings.json"), Encoding.UTF8));
+    }
+
+    [Fact]
+    public void SettingsArchiveService_ImportBackup_CopiesNestedFoldersDuringReplacement()
+    {
+        using var sourceTemp = new TempDirectory();
+        var sourcePaths = TestAppPaths(sourceTemp);
+        sourcePaths.EnsureDirectories();
+        var nestedSourceDir = Path.Combine(sourcePaths.Layouts, "nested");
+        Directory.CreateDirectory(nestedSourceDir);
+        File.WriteAllText(Path.Combine(nestedSourceDir, "imported.tpslayout"), "nested-layout", Encoding.UTF8);
+        var zipPath = Path.Combine(sourceTemp.DirectoryPath, "backup.zip");
+        new SettingsArchiveService(sourcePaths).CreateBackup(zipPath);
+
+        using var targetTemp = new TempDirectory();
+        var targetPaths = TestAppPaths(targetTemp);
+        targetPaths.EnsureDirectories();
+        File.WriteAllText(Path.Combine(targetPaths.Layouts, "old.tpslayout"), "old", Encoding.UTF8);
+
+        new SettingsArchiveService(targetPaths).ImportBackup(zipPath);
+
+        Assert.False(File.Exists(Path.Combine(targetPaths.Layouts, "old.tpslayout")));
+        Assert.Equal("nested-layout", File.ReadAllText(Path.Combine(targetPaths.Layouts, "nested", "imported.tpslayout"), Encoding.UTF8));
+    }
+
+    [Fact]
+    public void SettingsArchiveService_ImportBackup_ReplacesOnlyFoldersPresentInZip()
+    {
+        using var temp = new TempDirectory();
+        var paths = TestAppPaths(temp);
+        paths.EnsureDirectories();
+        var existingLayoutPath = Path.Combine(paths.Layouts, "existing.tpslayout");
+        var existingPresetPath = Path.Combine(paths.Presets, "existing.tpspreset");
+        var existingRecentPath = Path.Combine(paths.Recent, "recent.json");
+        var existingSettingsPath = Path.Combine(paths.Settings, "appsettings.json");
+        File.WriteAllText(existingLayoutPath, "existing-layout", Encoding.UTF8);
+        File.WriteAllText(existingPresetPath, "existing-preset", Encoding.UTF8);
+        File.WriteAllText(existingRecentPath, "existing-recent", Encoding.UTF8);
+        File.WriteAllText(existingSettingsPath, "old-settings", Encoding.UTF8);
+
+        var zipPath = Path.Combine(temp.DirectoryPath, "partial-settings-only.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("settings/appsettings.json");
+            using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+            writer.Write("new-settings");
+        }
+
+        new SettingsArchiveService(paths).ImportBackup(zipPath);
+
+        Assert.Equal("existing-layout", File.ReadAllText(existingLayoutPath, Encoding.UTF8));
+        Assert.Equal("existing-preset", File.ReadAllText(existingPresetPath, Encoding.UTF8));
+        Assert.Equal("existing-recent", File.ReadAllText(existingRecentPath, Encoding.UTF8));
+        Assert.Equal("new-settings", File.ReadAllText(existingSettingsPath, Encoding.UTF8));
     }
 
     [Fact]
@@ -589,6 +998,20 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void JsonFile_Save_OverwritesExistingJsonAndCleansTemporaryFile()
+    {
+        using var temp = new TempDirectory();
+        var path = Path.Combine(temp.DirectoryPath, "preset.tpspreset");
+
+        JsonFile.Save(path, new PresetFile { PresetName = "First" });
+        JsonFile.Save(path, new PresetFile { PresetName = "Second" });
+
+        var loaded = JsonFile.Load<PresetFile>(path);
+        Assert.Equal("Second", loaded.PresetName);
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "preset.tpspreset.tmp-*"));
+    }
+
+    [Fact]
     public void CsvColumnService_AddColumnToAllFiles_PreservesTabDelimiter()
     {
         using var temp = new TempDirectory();
@@ -615,7 +1038,7 @@ public sealed partial class ServiceTests
 
         new TagFinderCsvService().SaveFlags(
             [file],
-            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true, WasChecked = false }],
+            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true }],
             "tagPrint",
             "tagPrintOrder",
             hasHeaderRow: true);
@@ -642,7 +1065,7 @@ public sealed partial class ServiceTests
 
         new TagFinderCsvService().SaveFlags(
             [file],
-            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true, WasChecked = false }],
+            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true }],
             "tagPrint",
             "tagPrintOrder",
             hasHeaderRow: true);
@@ -778,6 +1201,134 @@ public sealed partial class ServiceTests
         Assert.Contains(result.Issues, issue =>
             issue.Contains("EAN-13", StringComparison.OrdinalIgnoreCase) ||
             issue.Contains("JAN-13", StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    [Fact]
+    public void PreflightCheck_ReportsCsvFileRowNumberWhenHeaderRowIsEnabled()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(Field("name", "Name", 0, required: true));
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var csv = CsvFile("items.csv", ["Name"], [""]);
+
+        var result = service.Check(layout, preset, [csv], hasHeaderRow: true);
+
+        Assert.True(result.HasBlockingIssues);
+        Assert.Contains(result.Errors, issue =>
+            issue.Contains("/ Row 2 /", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("/ 行 2 /", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Errors, issue =>
+            issue.Contains("/ Row 1 /", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("/ 行 1 /", StringComparison.OrdinalIgnoreCase));
+    }
+
+
+
+    [Fact]
+    public void PreflightCheck_WarnsWhenPrintTargetOrderSortHasMissingOrder()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("tag_print_order", "tagPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var csv = CsvFile("items.csv", ["Item Code", "tagPrint", "tagPrintOrder"], ["A", "true", ""], ["B", "false", ""], ["C", "true", "2"]);
+
+        var result = service.Check(layout, preset, [csv], hasHeaderRow: true, printSortMode: PrintSortMode.PrintTargetOrder);
+
+        Assert.False(result.HasBlockingIssues);
+        var warning = Assert.Single(result.Warnings);
+        Assert.Contains("items.csv", warning);
+        Assert.Contains("2", warning);
+    }
+
+
+
+    [Fact]
+    public void PreflightCheck_PrintTargetOrderSort_UsesCustomOrderColumnName()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("custom_order", "myPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var csv = CsvFile("items.csv", ["Item Code", "tagPrint", "myPrintOrder"], ["A", "true", "1"]);
+
+        var result = service.Check(
+            layout,
+            preset,
+            [csv],
+            hasHeaderRow: true,
+            printSortMode: PrintSortMode.PrintTargetOrder,
+            printTargetOrderColumnName: "myPrintOrder");
+
+        Assert.False(result.HasIssues);
+    }
+
+    [Fact]
+    public void PreflightCheck_WarnsForCustomOrderColumnOnlyWhenActuallyMissing()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("custom_order", "printOrder", 2),
+            Field("legacy_order", "tagPrintOrder", 3));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var filledCustom = CsvFile("filled.csv", ["Item Code", "tagPrint", "printOrder", "tagPrintOrder"], ["A", "true", "7", ""]);
+        var blankCustom = CsvFile("blank.csv", ["Item Code", "tagPrint", "printOrder", "tagPrintOrder"], ["B", "true", "", "99"]);
+
+        var filledResult = service.Check(
+            layout,
+            preset,
+            [filledCustom],
+            hasHeaderRow: true,
+            printSortMode: PrintSortMode.PrintTargetOrder,
+            printTargetOrderColumnName: "printOrder");
+        var blankResult = service.Check(
+            layout,
+            preset,
+            [blankCustom],
+            hasHeaderRow: true,
+            printSortMode: PrintSortMode.PrintTargetOrder,
+            printTargetOrderColumnName: "printOrder");
+
+        Assert.Empty(filledResult.Warnings);
+        var warning = Assert.Single(blankResult.Warnings);
+        Assert.Contains("blank.csv", warning);
+        Assert.Contains("2", warning);
+    }
+
+    [Fact]
+    public void PreflightCheck_DoesNotWarnAboutMissingPrintTargetOrderWhenUsingLoadOrder()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(
+            Field("item", "Item Code", 0),
+            Field("tag_print", "tagPrint", 1),
+            Field("tag_print_order", "tagPrintOrder", 2));
+        preset.Fields[1].PrintConditionEnabled = true;
+        preset.Fields[1].PrintConditionType = PrintConditionType.Bool;
+        preset.Fields[1].PrintConditionOperator = PrintConditionOperator.IsTrue;
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var csv = CsvFile("items.csv", ["Item Code", "tagPrint", "tagPrintOrder"], ["A", "true", ""]);
+
+        var result = service.Check(layout, preset, [csv], hasHeaderRow: true, printSortMode: PrintSortMode.LoadOrder);
+
+        Assert.Empty(result.Warnings);
+        Assert.False(result.HasIssues);
     }
 
     [Fact]
@@ -984,6 +1535,30 @@ public sealed partial class ServiceTests
         ConfirmOverwrite = false
     };
 
+    private static void InvokeOutputFileTransactionRestoreEntry(string path, string backupPath, bool hadExistingFile, bool backupCreated)
+    {
+        var transactionType = typeof(OutputService).GetNestedType(
+            "OutputFileTransaction",
+            System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(transactionType);
+
+        var entryType = typeof(OutputService).GetNestedType(
+            "OutputFileTransactionEntry",
+            System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(entryType);
+
+        var constructor = entryType.GetConstructors(
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Single();
+        var entry = constructor.Invoke([path, backupPath, hadExistingFile, backupCreated]);
+
+        var restoreMethod = transactionType.GetMethod(
+            "RestoreEntry",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(restoreMethod);
+        restoreMethod.Invoke(null, [entry]);
+    }
+
     private static int InvokeOutputServiceInt(string methodName, float value)
     {
         var method = typeof(OutputService).GetMethod(
@@ -1009,7 +1584,8 @@ public sealed partial class ServiceTests
         IEnumerable<CsvFileItem> files,
         PrintSortMode sortMode = PrintSortMode.LoadOrder,
         string sortFieldId = "",
-        PrintSortValueType sortValueType = PrintSortValueType.Text)
+        PrintSortValueType sortValueType = PrintSortValueType.Text,
+        string printTargetOrderColumnName = "")
     {
         var method = typeof(OutputService)
             .GetMethods(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
@@ -1017,10 +1593,10 @@ public sealed partial class ServiceTests
             {
                 if (method.Name != "Pages") return false;
                 var parameters = method.GetParameters();
-                return parameters.Length == 6 && parameters[2].ParameterType == typeof(IEnumerable<CsvFileItem>);
+                return parameters.Length == 7 && parameters[2].ParameterType == typeof(IEnumerable<CsvFileItem>);
             });
 
-        var result = method.Invoke(service, [layout, preset, files, sortMode, sortFieldId, sortValueType]);
+        var result = method.Invoke(service, [layout, preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName]);
         Assert.NotNull(result);
         return (IEnumerable<List<Dictionary<string, string>>>)result;
     }
@@ -1052,6 +1628,27 @@ public sealed partial class ServiceTests
         }
     }
 
+    private sealed class RecordingRenderer(int rowsPerPage) : IPreviewRenderService
+    {
+        public List<Dictionary<string, string>> SingleTagRows { get; } = [];
+        public List<List<Dictionary<string, string>>> PageRows { get; } = [];
+
+        public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f)
+        {
+            SingleTagRows.Add(new Dictionary<string, string>(rowData));
+            return new Bitmap(1, 1);
+        }
+
+        public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f)
+        {
+            PageRows.Add(rows.Select(row => new Dictionary<string, string>(row)).ToList());
+            return new Bitmap(1, 1);
+        }
+
+        public (int Columns, int Rows) GetGrid(LayoutFile layout) => (rowsPerPage, 1);
+        public int GetRowsPerPage(LayoutFile layout) => rowsPerPage;
+    }
+
     private sealed class FixedRowsPerPageRenderer(int rowsPerPage) : IPreviewRenderService
     {
         public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f) => new(1, 1);
@@ -1070,4 +1667,22 @@ public sealed partial class ServiceTests
             }
         }
     }
+
+    [Fact]
+    public void PreflightCheck_IgnoresPhysicalBlankRows()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(Field("name", "Name", 0, required: true));
+        var layout = Layout(tagWidth: 50, tagHeight: 30);
+        var csv = CsvFile("items.csv", ["Name"], Array.Empty<string>(), ["Apple"]);
+
+        var result = service.Check(layout, preset, [csv], hasHeaderRow: true);
+
+        Assert.False(result.HasIssues);
+        Assert.Equal(1, result.PrintableRowCount);
+        Assert.DoesNotContain(result.Errors, issue =>
+            issue.Contains("Row 2", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("行 2", StringComparison.OrdinalIgnoreCase));
+    }
+
 }

@@ -21,14 +21,16 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
     {
         Directory.CreateDirectory(options.OutputFolder);
         var renderScale = RenderScale(options);
-        var completedOutputPaths = new List<string>();
+        using var fileTransaction = new OutputFileTransaction();
+        var validFiles = csvFiles.Where(f => f.Status == CsvFileStatus.Ok).ToList();
+        var outputBaseNames = UniqueOutputBaseNames(validFiles);
         try
         {
             if (options.OutputScope == OutputScopeType.IndividualPngPerRow)
             {
                 var counters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 var completedRows = 0;
-                var entries = PrintableRowService.PrintableRowEntries(preset, csvFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType);
+                var entries = PrintableRowService.PrintableRowEntries(preset, validFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName);
                 Report(progress, "PNG", 0, entries.Count);
                 foreach (var entry in entries)
                 {
@@ -39,22 +41,21 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
                     counters[fileKey] = index;
 
                     using var bitmap = renderer.RenderSingleTag(layout, preset, MapRow(preset, entry.Row), renderScale);
-                    var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(entry.File.FileName));
+                    var baseName = OutputBaseName(outputBaseNames, entry.File);
                     var path = Path.Combine(options.OutputFolder, $"{baseName}_{index:0000}.png");
-                    SaveBitmapAtomic(bitmap, path, ImageFormat.Png, cancellationToken);
-                    completedOutputPaths.Add(path);
+                    SaveBitmapAtomic(bitmap, path, ImageFormat.Png, fileTransaction, cancellationToken);
                     completedRows++;
                     Report(progress, "PNG", completedRows, entries.Count, entry.File.FileName);
                 }
+                fileTransaction.Commit();
                 return;
             }
 
-            var validFiles = csvFiles.Where(f => f.Status == CsvFileStatus.Ok).ToList();
             var pageJobs = validFiles
                 .Select(file => new
                 {
                     File = file,
-                    Pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType).ToList()
+                    Pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).ToList()
                 })
                 .ToList();
             var totalPages = pageJobs.Sum(job => job.Pages.Count);
@@ -63,23 +64,24 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
             foreach (var job in pageJobs)
             {
                 var pages = job.Pages;
-                var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(job.File.FileName));
+                var baseName = OutputBaseName(outputBaseNames, job.File);
                 for (var pageIndex = 0; pageIndex < pages.Count; pageIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     using var bitmap = RenderPageWithContext(layout, preset, pages[pageIndex], renderScale, "PNG", completedPages + 1, totalPages);
                     var suffix = pages.Count == 1 ? "page" : $"page_{pageIndex + 1:000}";
                     var path = Path.Combine(options.OutputFolder, $"{baseName}_{suffix}.png");
-                    SaveBitmapAtomic(bitmap, path, ImageFormat.Png, cancellationToken);
-                    completedOutputPaths.Add(path);
+                    SaveBitmapAtomic(bitmap, path, ImageFormat.Png, fileTransaction, cancellationToken);
                     completedPages++;
                     Report(progress, "PNG", completedPages, totalPages, job.File.FileName);
                 }
             }
+
+            fileTransaction.Commit();
         }
-        catch (OperationCanceledException)
+        catch
         {
-            DeleteFiles(completedOutputPaths);
+            fileTransaction.Rollback();
             throw;
         }
     }
@@ -89,42 +91,45 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         Directory.CreateDirectory(options.OutputFolder);
         var renderScale = RenderScale(options);
         var paperSize = units.GetPaperSize(layout.Paper);
-        var completedOutputPaths = new List<string>();
+        using var fileTransaction = new OutputFileTransaction();
+        var validFiles = csvFiles.Where(f => f.Status == CsvFileStatus.Ok).ToList();
+        var outputBaseNames = UniqueOutputBaseNames(validFiles);
 
         try
         {
             if (options.OutputScope == OutputScopeType.SinglePdfAllCsv)
             {
-                var pages = Pages(layout, preset, csvFiles.Where(f => f.Status == CsvFileStatus.Ok), options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType).ToList();
+                var pages = Pages(layout, preset, validFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).ToList();
                 if (pages.Count > 0)
                 {
                     var path = Path.Combine(options.OutputFolder, "TagPrintStudio_Output.pdf");
                     Report(progress, "PDF", 0, pages.Count);
-                    SavePdfAtomic(path, RenderPdfPages(layout, preset, pages, renderScale, "PDF", progress, cancellationToken), paperSize, cancellationToken);
-                    completedOutputPaths.Add(path);
+                    SavePdfAtomic(path, RenderPdfPages(layout, preset, pages, renderScale, "PDF", progress, cancellationToken), paperSize, fileTransaction, cancellationToken);
                 }
 
+                fileTransaction.Commit();
                 return;
             }
 
-            foreach (var file in csvFiles.Where(f => f.Status == CsvFileStatus.Ok))
+            foreach (var file in validFiles)
             {
-                var pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType).ToList();
+                var pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).ToList();
                 if (pages.Count == 0)
                 {
                     continue;
                 }
 
-                var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(file.FileName));
+                var baseName = OutputBaseName(outputBaseNames, file);
                 var path = Path.Combine(options.OutputFolder, $"{baseName}.pdf");
                 Report(progress, "PDF", 0, pages.Count, file.FileName);
-                SavePdfAtomic(path, RenderPdfPages(layout, preset, pages, renderScale, "PDF", progress, cancellationToken), paperSize, cancellationToken);
-                completedOutputPaths.Add(path);
+                SavePdfAtomic(path, RenderPdfPages(layout, preset, pages, renderScale, "PDF", progress, cancellationToken), paperSize, fileTransaction, cancellationToken);
             }
+
+            fileTransaction.Commit();
         }
-        catch (OperationCanceledException)
+        catch
         {
-            DeleteFiles(completedOutputPaths);
+            fileTransaction.Rollback();
             throw;
         }
     }
@@ -139,7 +144,8 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
             csvFiles.Where(f => f.Status == CsvFileStatus.Ok),
             options.PrintSortMode,
             options.PrintSortFieldId,
-            options.PrintSortValueType).GetEnumerator();
+            options.PrintSortValueType,
+            options.PrintTargetOrderColumnName).GetEnumerator();
         if (!pageEnumerator.MoveNext()) return;
         Report(progress, "Print", 0, totalPages);
 
@@ -194,16 +200,30 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
     {
         var outputs = new List<string>();
         var validFiles = csvFiles.Where(f => f.Status == CsvFileStatus.Ok).ToList();
+        var outputBaseNames = UniqueOutputBaseNames(validFiles);
 
         if (options.OutputFormat == OutputFormatType.Pdf)
         {
             if (options.OutputScope == OutputScopeType.SeparatePdfPerCsv)
             {
-                outputs.AddRange(validFiles.Select(file => Path.Combine(options.OutputFolder, $"{SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(file.FileName))}.pdf")));
+                foreach (var file in validFiles)
+                {
+                    var hasPages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).Any();
+                    if (!hasPages)
+                    {
+                        continue;
+                    }
+
+                    outputs.Add(Path.Combine(options.OutputFolder, $"{OutputBaseName(outputBaseNames, file)}.pdf"));
+                }
             }
             else
             {
-                outputs.Add(Path.Combine(options.OutputFolder, "TagPrintStudio_Output.pdf"));
+                var hasPages = Pages(layout, preset, validFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).Any();
+                if (hasPages)
+                {
+                    outputs.Add(Path.Combine(options.OutputFolder, "TagPrintStudio_Output.pdf"));
+                }
             }
 
             return outputs;
@@ -212,14 +232,14 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         if (options.OutputScope == OutputScopeType.IndividualPngPerRow)
         {
             var counters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var entry in PrintableRowService.PrintableRowEntries(preset, validFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType))
+            foreach (var entry in PrintableRowService.PrintableRowEntries(preset, validFiles, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName))
             {
                 var fileKey = string.IsNullOrWhiteSpace(entry.File.FilePath) ? entry.File.FileName : entry.File.FilePath;
                 counters.TryGetValue(fileKey, out var index);
                 index++;
                 counters[fileKey] = index;
 
-                var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(entry.File.FileName));
+                var baseName = OutputBaseName(outputBaseNames, entry.File);
                 outputs.Add(Path.Combine(options.OutputFolder, $"{baseName}_{index:0000}.png"));
             }
 
@@ -228,8 +248,8 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
 
         foreach (var file in validFiles)
         {
-            var pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType).ToList();
-            var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(file.FileName));
+            var pages = Pages(layout, preset, file, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).ToList();
+            var baseName = OutputBaseName(outputBaseNames, file);
             for (var pageIndex = 0; pageIndex < pages.Count; pageIndex++)
             {
                 var suffix = pages.Count == 1 ? "page" : $"page_{pageIndex + 1:000}";
@@ -238,6 +258,35 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         }
 
         return outputs;
+    }
+
+    private static Dictionary<CsvFileItem, string> UniqueOutputBaseNames(IEnumerable<CsvFileItem> files)
+    {
+        var outputBaseNames = new Dictionary<CsvFileItem, string>();
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in files)
+        {
+            var baseName = SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(file.FileName));
+            var candidate = baseName;
+            var suffix = 2;
+            while (!usedNames.Add(candidate))
+            {
+                candidate = $"{baseName}_{suffix}";
+                suffix++;
+            }
+
+            outputBaseNames[file] = candidate;
+        }
+
+        return outputBaseNames;
+    }
+
+    private static string OutputBaseName(IReadOnlyDictionary<CsvFileItem, string> outputBaseNames, CsvFileItem file)
+    {
+        return outputBaseNames.TryGetValue(file, out var baseName)
+            ? baseName
+            : SafeFileNameService.ToSafeFileName(Path.GetFileNameWithoutExtension(file.FileName));
     }
 
     public static Dictionary<string, string> MapRow(PresetFile preset, string[] row)
@@ -250,15 +299,15 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         return data;
     }
 
-    private IEnumerable<List<Dictionary<string, string>>> Pages(LayoutFile layout, PresetFile preset, CsvFileItem file, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType)
+    private IEnumerable<List<Dictionary<string, string>>> Pages(LayoutFile layout, PresetFile preset, CsvFileItem file, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType, string printTargetOrderColumnName)
     {
-        return Pages(layout, preset, [file], sortMode, sortFieldId, sortValueType);
+        return Pages(layout, preset, [file], sortMode, sortFieldId, sortValueType, printTargetOrderColumnName);
     }
 
-    private IEnumerable<List<Dictionary<string, string>>> Pages(LayoutFile layout, PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType)
+    private IEnumerable<List<Dictionary<string, string>>> Pages(LayoutFile layout, PresetFile preset, IEnumerable<CsvFileItem> files, PrintSortMode sortMode, string sortFieldId, PrintSortValueType sortValueType, string printTargetOrderColumnName)
     {
         var rowsPerPage = renderer.GetRowsPerPage(layout);
-        return PrintableRowService.PrintableRows(preset, files, sortMode, sortFieldId, sortValueType)
+        return PrintableRowService.PrintableRows(preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName)
             .Select(row => MapRow(preset, row))
             .Chunk(rowsPerPage)
             .Select(chunk => chunk.ToList());
@@ -287,7 +336,7 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
     private int CountPages(LayoutFile layout, PresetFile preset, IEnumerable<CsvFileItem> files, OutputOptions options)
     {
         var rowsPerPage = Math.Max(1, renderer.GetRowsPerPage(layout));
-        var rowCount = PrintableRowService.PrintableRows(preset, files, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType).Count;
+        var rowCount = PrintableRowService.PrintableRows(preset, files, options.PrintSortMode, options.PrintSortFieldId, options.PrintSortValueType, options.PrintTargetOrderColumnName).Count;
         return (int)Math.Ceiling(rowCount / (double)rowsPerPage);
     }
 
@@ -321,7 +370,7 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         });
     }
 
-    private static void SaveBitmapAtomic(Bitmap bitmap, string path, ImageFormat format, CancellationToken cancellationToken)
+    private static void SaveBitmapAtomic(Bitmap bitmap, string path, ImageFormat format, OutputFileTransaction fileTransaction, CancellationToken cancellationToken)
     {
         var partialPath = PartialPath(path);
         DeleteIfExists(partialPath);
@@ -330,7 +379,7 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
             cancellationToken.ThrowIfCancellationRequested();
             bitmap.Save(partialPath, format);
             cancellationToken.ThrowIfCancellationRequested();
-            File.Move(partialPath, path, overwrite: true);
+            fileTransaction.ReplaceWithPartial(partialPath, path);
         }
         finally
         {
@@ -338,7 +387,7 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         }
     }
 
-    private static void SavePdfAtomic(string path, IEnumerable<Bitmap> images, SizeF pageSizeMm, CancellationToken cancellationToken)
+    private static void SavePdfAtomic(string path, IEnumerable<Bitmap> images, SizeF pageSizeMm, OutputFileTransaction fileTransaction, CancellationToken cancellationToken)
     {
         var partialPath = PartialPath(path);
         DeleteIfExists(partialPath);
@@ -349,7 +398,7 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
             cancellationToken.ThrowIfCancellationRequested();
             if (File.Exists(partialPath))
             {
-                File.Move(partialPath, path, overwrite: true);
+                fileTransaction.ReplaceWithPartial(partialPath, path);
             }
         }
         finally
@@ -358,15 +407,101 @@ public sealed class OutputService(IPreviewRenderService renderer, IUnitConversio
         }
     }
 
-    private static string PartialPath(string path) => $"{path}.partial";
+    private static string PartialPath(string path) => $"{path}.partial-{Guid.NewGuid():N}";
 
-    private static void DeleteFiles(IEnumerable<string> paths)
+    private sealed class OutputFileTransaction : IDisposable
     {
-        foreach (var path in paths)
+        private readonly List<OutputFileTransactionEntry> entries = [];
+        private bool completed;
+
+        public void ReplaceWithPartial(string partialPath, string path)
         {
-            DeleteIfExists(path);
+            var backupPath = BackupPath(path);
+            var hadExistingFile = File.Exists(path);
+            var entry = new OutputFileTransactionEntry(path, backupPath, hadExistingFile, BackupCreated: false);
+
+            try
+            {
+                if (hadExistingFile)
+                {
+                    DeleteIfExists(backupPath);
+                    File.Move(path, backupPath);
+                    entry = entry with { BackupCreated = true };
+                }
+
+                entries.Add(entry);
+                File.Move(partialPath, path, overwrite: false);
+            }
+            catch
+            {
+                entries.Remove(entry);
+                RestoreEntry(entry);
+                throw;
+            }
         }
+
+        public void Commit()
+        {
+            foreach (var entry in entries)
+            {
+                if (entry.BackupCreated)
+                {
+                    DeleteIfExists(entry.BackupPath);
+                }
+            }
+
+            entries.Clear();
+            completed = true;
+        }
+
+        public void Rollback()
+        {
+            for (var index = entries.Count - 1; index >= 0; index--)
+            {
+                RestoreEntry(entries[index]);
+            }
+
+            entries.Clear();
+            completed = true;
+        }
+
+        public void Dispose()
+        {
+            if (!completed)
+            {
+                Rollback();
+            }
+        }
+
+        private static void RestoreEntry(OutputFileTransactionEntry entry)
+        {
+            if (entry.HadExistingFile)
+            {
+                if (entry.BackupCreated && File.Exists(entry.BackupPath))
+                {
+                    DeleteIfExists(entry.Path);
+
+                    try
+                    {
+                        File.Move(entry.BackupPath, entry.Path, overwrite: true);
+                    }
+                    catch
+                    {
+                        // Rollback is best effort; avoid masking the original export error.
+                    }
+                }
+
+                return;
+            }
+
+            DeleteIfExists(entry.Path);
+            DeleteIfExists(entry.BackupPath);
+        }
+
+        private static string BackupPath(string path) => $"{path}.original-backup-{Guid.NewGuid():N}";
     }
+
+    private sealed record OutputFileTransactionEntry(string Path, string BackupPath, bool HadExistingFile, bool BackupCreated);
 
     private static void DeleteIfExists(string path)
     {

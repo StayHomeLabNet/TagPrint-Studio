@@ -40,8 +40,60 @@ public static class JsonFile
 
     public static void Save<T>(string path, T value)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(value, Options));
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var tempPath = Path.Combine(
+            string.IsNullOrWhiteSpace(directory) ? Environment.CurrentDirectory : directory,
+            $"{Path.GetFileName(fullPath)}.tmp-{Guid.NewGuid():N}");
+
+        try
+        {
+            File.WriteAllText(tempPath, JsonSerializer.Serialize(value, Options));
+            if (File.Exists(fullPath))
+            {
+                ReplaceFile(tempPath, fullPath);
+            }
+            else
+            {
+                File.Move(tempPath, fullPath);
+            }
+        }
+        finally
+        {
+            TryDeleteFile(tempPath);
+        }
+    }
+
+    private static void ReplaceFile(string sourcePath, string destinationPath)
+    {
+        try
+        {
+            File.Replace(sourcePath, destinationPath, destinationBackupFileName: null, ignoreMetadataErrors: true);
+        }
+        catch (PlatformNotSupportedException)
+        {
+            File.Move(sourcePath, destinationPath, overwrite: true);
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup. The destination file has either been saved or the original file is still present.
+        }
     }
 
     private static string MoveBrokenJson(string path)

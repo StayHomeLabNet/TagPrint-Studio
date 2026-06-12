@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.VisualBasic.FileIO;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 
@@ -28,7 +27,9 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 var detection = DetectEncoding(filePath);
                 var content = File.ReadAllText(filePath, detection.Encoding);
                 var delimiter = DetectDelimiter(content);
-                var parsed = ParseCsvContent(content, delimiter).Where(r => r.Any(c => !string.IsNullOrWhiteSpace(c))).ToList();
+                var parsed = ParseCsvContent(content, delimiter)
+                    .Select(NormalizeBlankRecord)
+                    .ToList();
                 var item = new CsvFileItem
                 {
                     FilePath = filePath,
@@ -37,6 +38,8 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     EncodingName = detection.Kind switch
                     {
                         EncodingKind.Utf8Bom => "UTF-8 BOM",
+                        EncodingKind.Utf16LeBom => "UTF-16 LE BOM",
+                        EncodingKind.Utf16BeBom => "UTF-16 BE BOM",
                         EncodingKind.Utf8 => "UTF-8",
                         EncodingKind.ShiftJis => "Shift_JIS",
                         _ => detection.Encoding.WebName
@@ -55,11 +58,20 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 item.RowCount = item.Rows.Count;
                 item.ColumnCount = item.HeaderRow.Length;
 
+                var mismatchedRow = item.Rows
+                    .Select((row, index) => new { Row = row, RowNumber = hasHeaderRow ? index + 2 : index + 1 })
+                    .FirstOrDefault(entry => !CsvFileUtility.IsBlankRow(entry.Row) && entry.Row.Length != item.HeaderRow.Length);
+
                 if (expectedColumns is null) expectedColumns = item.ColumnCount;
                 if (item.ColumnCount != expectedColumns)
                 {
                     item.Status = CsvFileStatus.ColumnMismatch;
                     item.Note = $"列数が一致しません。期待値 {expectedColumns}, 実際 {item.ColumnCount}";
+                }
+                else if (mismatchedRow is not null)
+                {
+                    item.Status = CsvFileStatus.ColumnMismatch;
+                    item.Note = $"列数が一致しません。行 {mismatchedRow.RowNumber}: 期待値 {item.HeaderRow.Length}, 実際 {mismatchedRow.Row.Length}";
                 }
                 else
                 {
@@ -110,6 +122,16 @@ public sealed class CsvLoaderService : ICsvLoaderService
             return new EncodingDetectionResult(new UTF8Encoding(true, true), EncodingKind.Utf8Bom);
         }
 
+        if (HasUtf16LeBom(bytes))
+        {
+            return new EncodingDetectionResult(Encoding.Unicode, EncodingKind.Utf16LeBom);
+        }
+
+        if (HasUtf16BeBom(bytes))
+        {
+            return new EncodingDetectionResult(Encoding.BigEndianUnicode, EncodingKind.Utf16BeBom);
+        }
+
         if (IsValidUtf8(bytes))
         {
             return new EncodingDetectionResult(new UTF8Encoding(false, true), EncodingKind.Utf8);
@@ -123,6 +145,16 @@ public sealed class CsvLoaderService : ICsvLoaderService
         bytes[0] == 0xEF &&
         bytes[1] == 0xBB &&
         bytes[2] == 0xBF;
+
+    private static bool HasUtf16LeBom(byte[] bytes) =>
+        bytes.Length >= 2 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xFE;
+
+    private static bool HasUtf16BeBom(byte[] bytes) =>
+        bytes.Length >= 2 &&
+        bytes[0] == 0xFE &&
+        bytes[1] == 0xFF;
 
     private static bool IsValidUtf8(byte[] bytes)
     {
@@ -139,28 +171,41 @@ public sealed class CsvLoaderService : ICsvLoaderService
 
     private static string DetectDelimiter(string content)
     {
-        var firstRecord = FirstRecordText(content);
+        var records = FirstRecordTexts(content, maxRecords: 20)
+            .Where(record => record.Any(c => !char.IsWhiteSpace(c)))
+            .ToList();
+
+        if (records.Count == 0)
+        {
+            return ",";
+        }
+
         var candidates = new[] { ",", "\t", ";" };
         return candidates
-            .Select(delimiter => new { Delimiter = delimiter, Count = CountDelimiter(firstRecord, delimiter[0]) })
-            .OrderByDescending(item => item.Count)
-            .ThenBy(item => item.Delimiter == "," ? 0 : 1)
+            .Select(delimiter => ScoreDelimiter(records, delimiter))
+            .OrderByDescending(score => score.DelimitedRecordCount)
+            .ThenByDescending(score => score.ConsistentDelimitedRecordCount)
+            .ThenByDescending(score => score.ModeDelimiterCount)
+            .ThenByDescending(score => score.TotalDelimiterCount)
+            .ThenBy(score => DelimiterPreference(score.Delimiter))
             .First().Delimiter;
     }
 
-    private static string FirstRecordText(string content)
+    private static IEnumerable<string> FirstRecordTexts(string content, int maxRecords)
     {
         var current = new StringBuilder();
         var inQuotes = false;
+        var yielded = 0;
 
         for (var i = 0; i < content.Length; i++)
         {
             var c = content[i];
             if (c == '"')
             {
+                current.Append(c);
                 if (inQuotes && i + 1 < content.Length && content[i + 1] == '"')
                 {
-                    current.Append('"');
+                    current.Append(content[i + 1]);
                     i++;
                 }
                 else
@@ -170,7 +215,18 @@ public sealed class CsvLoaderService : ICsvLoaderService
             }
             else if ((c == '\r' || c == '\n') && !inQuotes)
             {
-                break;
+                yield return current.ToString();
+                yielded++;
+                if (yielded >= maxRecords)
+                {
+                    yield break;
+                }
+
+                current.Clear();
+                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                {
+                    i++;
+                }
             }
             else
             {
@@ -178,8 +234,46 @@ public sealed class CsvLoaderService : ICsvLoaderService
             }
         }
 
-        return current.ToString();
+        if (current.Length > 0 || content.Length == 0 || content.EndsWith('\r') || content.EndsWith('\n'))
+        {
+            yield return current.ToString();
+        }
     }
+
+    private static DelimiterScore ScoreDelimiter(IReadOnlyList<string> records, string delimiter)
+    {
+        var delimiterChar = delimiter[0];
+        var counts = records
+            .Select(record => CountDelimiter(record, delimiterChar))
+            .Where(count => count > 0)
+            .ToList();
+
+        if (counts.Count == 0)
+        {
+            return new DelimiterScore(delimiter, 0, 0, 0, 0);
+        }
+
+        var mode = counts
+            .GroupBy(count => count)
+            .OrderByDescending(group => group.Count())
+            .ThenByDescending(group => group.Key)
+            .First();
+
+        return new DelimiterScore(
+            delimiter,
+            DelimitedRecordCount: counts.Count,
+            ConsistentDelimitedRecordCount: mode.Count(),
+            TotalDelimiterCount: counts.Sum(),
+            ModeDelimiterCount: mode.Key);
+    }
+
+    private static int DelimiterPreference(string delimiter) => delimiter switch
+    {
+        "," => 0,
+        "\t" => 1,
+        ";" => 2,
+        _ => 3
+    };
 
     private static int CountDelimiter(string text, char delimiter)
     {
@@ -208,32 +302,125 @@ public sealed class CsvLoaderService : ICsvLoaderService
         return count;
     }
 
+
+    private static string[] NormalizeBlankRecord(string[] row)
+    {
+        // Store physically blank CSV lines as empty rows so CsvFileUtility can write
+        // them back as blank lines instead of treating them as one-column data rows.
+        return row.Length == 1 && row[0].Length == 0 ? [] : row;
+    }
+
     private static List<string[]> ParseCsvContent(string content, string delimiter)
     {
         var records = new List<string[]>();
-        using var reader = new StringReader(content);
-        using var parser = new TextFieldParser(reader)
-        {
-            TextFieldType = FieldType.Delimited,
-            HasFieldsEnclosedInQuotes = true,
-            TrimWhiteSpace = false
-        };
-        parser.SetDelimiters(delimiter);
+        var row = new List<string>();
+        var field = new StringBuilder();
+        var delimiterChar = delimiter.Length > 0 ? delimiter[0] : ',';
+        var inQuotes = false;
+        var atFieldStart = true;
+        var recordHadCharacters = false;
+        var lineNumber = 1;
+        var recordStartLine = 1;
 
-        try
+        void FinishRecord()
         {
-            while (!parser.EndOfData)
+            if (!recordHadCharacters && row.Count == 0 && field.Length == 0)
             {
-                records.Add(parser.ReadFields() ?? []);
+                records.Add([]);
             }
+            else
+            {
+                row.Add(field.ToString());
+                records.Add(row.ToArray());
+            }
+
+            row = [];
+            field.Clear();
+            atFieldStart = true;
+            recordHadCharacters = false;
+            recordStartLine = lineNumber;
         }
-        catch (MalformedLineException ex)
+
+        for (var i = 0; i < content.Length; i++)
         {
-            throw new FormatException($"CSV parse error at line {ex.LineNumber}: {ex.Message}", ex);
+            var c = content[i];
+
+            if (c == '"')
+            {
+                recordHadCharacters = true;
+                if (inQuotes)
+                {
+                    if (i + 1 < content.Length && content[i + 1] == '"')
+                    {
+                        field.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else if (atFieldStart)
+                {
+                    inQuotes = true;
+                    atFieldStart = false;
+                }
+                else
+                {
+                    field.Append(c);
+                }
+
+                continue;
+            }
+
+            if (c == delimiterChar && !inQuotes)
+            {
+                recordHadCharacters = true;
+                row.Add(field.ToString());
+                field.Clear();
+                atFieldStart = true;
+                continue;
+            }
+
+            if ((c == '\r' || c == '\n') && !inQuotes)
+            {
+                FinishRecord();
+
+                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                {
+                    i++;
+                }
+
+                lineNumber++;
+                recordStartLine = lineNumber;
+                continue;
+            }
+
+            if (c == '\r' || c == '\n')
+            {
+                lineNumber++;
+            }
+
+            recordHadCharacters = true;
+            field.Append(c);
+            atFieldStart = false;
+        }
+
+        if (inQuotes)
+        {
+            throw new FormatException($"CSV parse error at line {recordStartLine}: malformed quoted field.");
+        }
+
+        if (recordHadCharacters || row.Count > 0 || field.Length > 0)
+        {
+            row.Add(field.ToString());
+            records.Add(row.ToArray());
         }
 
         return records;
     }
+
+    private sealed record DelimiterScore(string Delimiter, int DelimitedRecordCount, int ConsistentDelimitedRecordCount, int TotalDelimiterCount, int ModeDelimiterCount);
     private sealed record EncodingDetectionResult(Encoding Encoding, EncodingKind Kind);
-    private enum EncodingKind { Utf8Bom, Utf8, ShiftJis }
+    private enum EncodingKind { Utf8Bom, Utf16LeBom, Utf16BeBom, Utf8, ShiftJis }
 }

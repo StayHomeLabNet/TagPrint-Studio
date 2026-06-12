@@ -217,6 +217,32 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void DuplicateCleanup_Analyze_AlwaysIgnoresPhysicalBlankRows()
+    {
+        var service = new DuplicateCleanupService();
+        var preset = Preset(
+            Field("code", "Code", 0),
+            Field("price", "Price", 1));
+        var files = new List<CsvFileItem>
+        {
+            Csv("first.csv", Array.Empty<string>(), ["A100", "120"]),
+            Csv("second.csv", Array.Empty<string>(), ["A100", "180"])
+        };
+
+        var result = service.Analyze(preset, files, new DuplicateCleanupOptions
+        {
+            KeyFieldId = "code",
+            CompareFieldId = "price",
+            ValueType = DuplicateValueType.Number,
+            Rule = DuplicateResolutionRule.KeepLargest,
+            IgnoreEmptyKeys = false
+        });
+
+        Assert.Equal(1, result.GroupCount);
+        Assert.All(result.Items, item => Assert.Equal("A100", item.KeyValue));
+    }
+
+    [Fact]
     public void DuplicateCleanup_Analyze_BuildsCarryAction_WhenKeepRowIsEmpty()
     {
         var service = new DuplicateCleanupService();
@@ -335,4 +361,108 @@ public sealed partial class ServiceTests
         var keepRow = Assert.Single(result.Items, item => item.Keep);
         Assert.Equal("Description, Note", keepRow.CarrySummary);
     }
+
+    [Fact]
+    public void DuplicateCleanup_Apply_RollsBackDiskAndKeepsMemoryUnchangedWhenLaterCsvSaveFails()
+    {
+        using var temp = new TempDirectory();
+        var file1Path = temp.WriteText("first.csv", "Code,Price\r\nA100,120\r\nB200,50\r\n", Encoding.UTF8);
+        var blockingFilePath = temp.WriteText("not-a-folder", "blocks directory creation", Encoding.UTF8);
+        var file2Path = Path.Combine(blockingFilePath, "second.csv");
+
+        var file1 = new CsvFileItem
+        {
+            FileName = "first.csv",
+            FilePath = file1Path,
+            EncodingName = "UTF-8",
+            Status = CsvFileStatus.Ok,
+            HeaderRow = ["Code", "Price"],
+            Rows = [["A100", "120"], ["B200", "50"]],
+            RowCount = 2,
+            ColumnCount = 2
+        };
+        var file2 = new CsvFileItem
+        {
+            FileName = "second.csv",
+            FilePath = file2Path,
+            EncodingName = "UTF-8",
+            Status = CsvFileStatus.Ok,
+            HeaderRow = ["Code", "Price"],
+            Rows = [["A100", "180"]],
+            RowCount = 1,
+            ColumnCount = 2
+        };
+
+        var result = new DuplicateCleanupResult
+        {
+            Items =
+            [
+                new DuplicateResolutionItem
+                {
+                    FilePath = file1Path,
+                    FileName = "first.csv",
+                    RowIndex = 0,
+                    Keep = false
+                },
+                new DuplicateResolutionItem
+                {
+                    FilePath = file2Path,
+                    FileName = "second.csv",
+                    RowIndex = 0,
+                    Keep = true
+                }
+            ],
+            CarryActions =
+            [
+                new DuplicateCarryAction
+                {
+                    KeepFilePath = file2Path,
+                    KeepRowIndex = 0,
+                    ColumnIndex = 1,
+                    Value = "999"
+                }
+            ]
+        };
+
+        var exception = Assert.Throws<IOException>(() =>
+            new DuplicateCleanupService().Apply([file1, file2], result, hasHeaderRow: true));
+
+        Assert.Contains("Duplicate cleanup CSV save failed", exception.Message);
+        Assert.Collection(
+            file1.Rows,
+            row => Assert.Equal(["A100", "120"], row),
+            row => Assert.Equal(["B200", "50"], row));
+        var file2Row = Assert.Single(file2.Rows);
+        Assert.Equal(["A100", "180"], file2Row);
+        Assert.Equal("Code,Price\r\nA100,120\r\nB200,50\r\n", File.ReadAllText(file1Path, Encoding.UTF8));
+    }
+
+
+    [Fact]
+    public void DuplicateCleanup_Analyze_UsesLastRowRule()
+    {
+        var service = new DuplicateCleanupService();
+        var preset = Preset(
+            Field("code", "Code", 0),
+            Field("description", "Description", 1));
+        var files = new List<CsvFileItem>
+        {
+            Csv("first.csv", ["A100", "First"]),
+            Csv("second.csv", ["A100", "Last"])
+        };
+
+        var result = service.Analyze(preset, files, new DuplicateCleanupOptions
+        {
+            KeyFieldId = "code",
+            CompareFieldId = "description",
+            ValueType = DuplicateValueType.Text,
+            Rule = DuplicateResolutionRule.KeepLast
+        });
+
+        var items = result.Items.Where(item => item.KeyValue == "A100").ToList();
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, item => item.Keep && item.FileName == "second.csv" && item.CompareValue == "Last");
+        Assert.Contains(items, item => !item.Keep && item.FileName == "first.csv" && item.CompareValue == "First");
+    }
+
 }

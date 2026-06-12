@@ -27,7 +27,8 @@ public sealed partial class TagFinderDialog
                 hasHeaderRow,
                 settings.LastPrintSortMode,
                 settings.LastPrintSortFieldId,
-                settings.LastPrintSortValueType);
+                settings.LastPrintSortValueType,
+                OrderColumnName());
 
             if (previewRows.Count == 0)
             {

@@ -25,6 +25,7 @@ public sealed partial class TagFinderDialog : Form
     private readonly AppSettings settings;
     private readonly Action saveSettings;
     private readonly Action<string> queueCreated;
+    private readonly string initialOrderColumnName;
     private readonly BindingList<TagFinderResultRow> resultRows = [];
     private bool targetHeaderChecked;
     private TagFinderResultRow? queueTargetFromDoubleClick;
@@ -47,6 +48,7 @@ public sealed partial class TagFinderDialog : Form
 
     public bool CsvSaved { get; private set; }
     public string QueueCsvPath { get; private set; } = "";
+    public string SelectedOrderColumnName => OrderColumnName();
     public List<CsvPreviewRowContext>? LayoutDesignerPreviewRows { get; private set; }
     public int LayoutDesignerInitialPreviewIndex { get; private set; }
 
@@ -57,7 +59,8 @@ public sealed partial class TagFinderDialog : Form
         bool hasHeaderRow,
         AppSettings settings,
         Action saveSettings,
-        Action<string> queueCreated)
+        Action<string> queueCreated,
+        string printTargetOrderColumnName = "")
     {
         this.fields = fields
             .Where(field => field.Enabled && field.ColumnIndex is >= 0)
@@ -70,6 +73,9 @@ public sealed partial class TagFinderDialog : Form
         this.settings = settings;
         this.saveSettings = saveSettings;
         this.queueCreated = queueCreated;
+        initialOrderColumnName = string.IsNullOrWhiteSpace(printTargetOrderColumnName)
+            ? "tagPrintOrder"
+            : printTargetOrderColumnName.Trim();
 
         Text = T("tagFinder.title");
         Width = 1220;
@@ -121,9 +127,9 @@ public sealed partial class TagFinderDialog : Form
         flagColumnBox.Text = string.IsNullOrWhiteSpace(settings.LastTagFinderFlagColumnName)
             ? "tagPrint"
             : settings.LastTagFinderFlagColumnName;
-        orderColumnBox.Text = string.IsNullOrWhiteSpace(settings.LastTagFinderOrderColumnName)
+        orderColumnBox.Text = string.IsNullOrWhiteSpace(initialOrderColumnName)
             ? $"{FlagColumnName()}Order"
-            : settings.LastTagFinderOrderColumnName;
+            : initialOrderColumnName;
         autoCheckAfterSearchCheck.Checked = settings.LastTagFinderAutoCheckAfterSearch;
         tagPreviewVisibleCheck.Checked = settings.LastTagFinderPreviewVisible;
         ApplyTagPreviewVisibility();
@@ -433,10 +439,10 @@ public sealed partial class TagFinderDialog : Form
         }
     }
 
-    private static bool TryOrderValue(TagFinderResultRow row, string orderColumnName, out int value)
+    private bool TryOrderValue(TagFinderResultRow row, string orderColumnName, out int value)
     {
         value = 0;
-        var index = FindHeaderIndex(row.File, orderColumnName);
+        var index = PrintTargetOrderColumnResolver.FindColumnIndex(previewPreset, row.File, orderColumnName);
         return index >= 0
             && index < row.File.Rows[row.RowIndex].Length
             && int.TryParse(row.File.Rows[row.RowIndex][index], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out value);

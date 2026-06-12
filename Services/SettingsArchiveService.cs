@@ -19,16 +19,33 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
     {
         paths.EnsureDirectories();
 
-        if (File.Exists(zipPath))
+        var fullZipPath = Path.GetFullPath(zipPath);
+        var zipDirectory = Path.GetDirectoryName(fullZipPath);
+        if (!string.IsNullOrWhiteSpace(zipDirectory))
         {
-            File.Delete(zipPath);
+            Directory.CreateDirectory(zipDirectory);
         }
 
-        using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
-        AddDirectoryToArchive(archive, paths.Layouts, "layouts");
-        AddDirectoryToArchive(archive, paths.Presets, "presets");
-        AddDirectoryToArchive(archive, paths.Recent, "recent");
-        AddDirectoryToArchive(archive, paths.Settings, "settings");
+        var tempPath = Path.Combine(
+            string.IsNullOrWhiteSpace(zipDirectory) ? Environment.CurrentDirectory : zipDirectory,
+            $"{Path.GetFileName(fullZipPath)}.tmp-{Guid.NewGuid():N}");
+
+        try
+        {
+            using (var archive = ZipFile.Open(tempPath, ZipArchiveMode.Create))
+            {
+                AddDirectoryToArchive(archive, paths.Layouts, "layouts");
+                AddDirectoryToArchive(archive, paths.Presets, "presets");
+                AddDirectoryToArchive(archive, paths.Recent, "recent");
+                AddDirectoryToArchive(archive, paths.Settings, "settings");
+            }
+
+            File.Move(tempPath, fullZipPath, overwrite: true);
+        }
+        finally
+        {
+            TryDeleteFile(tempPath);
+        }
     }
 
     public void ImportBackup(string zipPath)
@@ -57,21 +74,20 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             foreach (var (root, targetDir) in targetMap)
             {
                 var sourceDir = Path.Combine(extractRoot, root);
+                if (!Directory.Exists(sourceDir))
+                {
+                    continue;
+                }
+
                 var backupDir = Path.Combine(backupRoot, root);
                 if (Directory.Exists(targetDir))
                 {
-                    Directory.Move(targetDir, backupDir);
+                    CopyDirectory(targetDir, backupDir);
                     movedTargets.Add((targetDir, backupDir));
+                    DeleteDirectory(targetDir);
                 }
 
-                if (Directory.Exists(sourceDir))
-                {
-                    Directory.Move(sourceDir, targetDir);
-                }
-                else
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
+                CopyDirectory(sourceDir, targetDir);
             }
 
             foreach (var targetDir in targetMap.Values)
@@ -100,7 +116,6 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
     private static void ExtractAndValidateBackup(string zipPath, string extractRoot, IEnumerable<string> allowedRoots)
     {
         var allowedRootSet = new HashSet<string>(allowedRoots, StringComparer.OrdinalIgnoreCase);
-        var extractedFileCount = 0;
         var validatedEntryCount = 0;
         long totalUncompressedBytes = 0;
 
@@ -116,7 +131,7 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             var slashIndex = normalized.IndexOf('/');
             var root = slashIndex >= 0 ? normalized[..slashIndex] : normalized;
             var relativePath = slashIndex >= 0 ? normalized[(slashIndex + 1)..] : "";
-            if (!allowedRootSet.Contains(root) || string.IsNullOrWhiteSpace(relativePath))
+            if (!allowedRootSet.Contains(root))
             {
                 continue;
             }
@@ -130,6 +145,16 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             if (validatedEntryCount > MaxBackupEntryCount)
             {
                 throw new InvalidOperationException("The ZIP contains too many files.");
+            }
+
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                if (IsDirectoryEntry(entry))
+                {
+                    Directory.CreateDirectory(Path.Combine(extractRoot, root));
+                }
+
+                continue;
             }
 
             var destinationPath = Path.GetFullPath(Path.Combine(extractRoot, root, relativePath));
@@ -156,8 +181,6 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
                 throw new InvalidOperationException("The ZIP is too large to import.");
             }
 
-            extractedFileCount++;
-
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrWhiteSpace(destinationDir))
             {
@@ -167,7 +190,7 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
 
-        if (extractedFileCount == 0 || !allowedRootSet.Any(root => Directory.Exists(Path.Combine(extractRoot, root))))
+        if (validatedEntryCount == 0 || !allowedRootSet.Any(root => Directory.Exists(Path.Combine(extractRoot, root))))
         {
             throw new InvalidOperationException("The ZIP does not contain layouts, presets, recent, or settings folders.");
         }
@@ -184,8 +207,62 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             TryDeleteDirectory(target);
             if (Directory.Exists(backup))
             {
-                Directory.Move(backup, target);
+                try
+                {
+                    CopyDirectory(backup, target);
+                }
+                catch
+                {
+                    // Best-effort restore. Preserve the original import error.
+                }
             }
+        }
+    }
+
+
+    private static void DeleteDirectory(string directoryPath)
+    {
+        if (Directory.Exists(directoryPath))
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        if (!Directory.Exists(sourceDirectory))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (var directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, directory);
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, file);
+            var destinationPath = Path.Combine(destinationDirectory, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.Copy(file, destinationPath, overwrite: true);
+        }
+    }
+
+    private static void TryDeleteFile(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup. The backup operation has either succeeded or the original backup was left untouched.
         }
     }
 
@@ -206,6 +283,8 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
 
     private static void AddDirectoryToArchive(ZipArchive archive, string sourceDirectory, string entryRoot)
     {
+        archive.CreateEntry($"{entryRoot}/");
+
         if (!Directory.Exists(sourceDirectory)) return;
 
         foreach (var filePath in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)

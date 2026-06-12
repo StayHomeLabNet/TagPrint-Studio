@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Globalization;
-using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
 
@@ -114,9 +113,6 @@ internal sealed partial class DuplicateCleanupDialog : Form
         Name = property,
         Width = width
     };
-
-    private static string L(string japanese, string english) =>
-        LocalizationService.CurrentLanguage == AppLanguage.Japanese ? japanese : english;
 
     private static void SelectFieldById(ComboBox combo, string fieldId, int fallbackIndex)
     {

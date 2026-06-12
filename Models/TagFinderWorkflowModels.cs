@@ -12,7 +12,6 @@ public class TagFinderSaveSelection
     public required CsvFileItem File { get; init; }
     public required int RowIndex { get; init; }
     public bool Checked { get; init; }
-    public bool WasChecked { get; init; }
 }
 
 public class TagFinderQueueSource
