@@ -1549,7 +1549,15 @@ public sealed partial class ServiceTests
 
         var constructor = entryType.GetConstructors(
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
-            .Single();
+            .Single(static c =>
+            {
+                var parameters = c.GetParameters();
+                return parameters.Length == 4
+                    && parameters[0].ParameterType == typeof(string)
+                    && parameters[1].ParameterType == typeof(string)
+                    && parameters[2].ParameterType == typeof(bool)
+                    && parameters[3].ParameterType == typeof(bool);
+            });
         var entry = constructor.Invoke([path, backupPath, hadExistingFile, backupCreated]);
 
         var restoreMethod = transactionType.GetMethod(
