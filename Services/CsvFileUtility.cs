@@ -104,23 +104,13 @@ public static class CsvFileUtility
 
         var guidance = csvException.Stage switch
         {
-            "write-temp" => LocalizationService.CurrentLanguage == Enums.AppLanguage.Japanese
-                ? "一時ファイルの作成に失敗しました。保存先フォルダーの書き込み権限、空き容量、ウイルス対策ソフトの干渉を確認してください。"
-                : "Failed to create a temporary file. Check write permissions, free disk space, and antivirus interference.",
-            "replace-target" => LocalizationService.CurrentLanguage == Enums.AppLanguage.Japanese
-                ? "既存CSVの置き換えに失敗しました。CSVが他のアプリで開かれていないか確認してください。"
-                : "Failed to replace the existing CSV. Make sure the CSV is not open in another application.",
-            "move-target" => LocalizationService.CurrentLanguage == Enums.AppLanguage.Japanese
-                ? "新しいCSVの配置に失敗しました。保存先フォルダーの権限やファイル名競合を確認してください。"
-                : "Failed to place the new CSV. Check folder permissions and file name conflicts.",
-            _ => LocalizationService.CurrentLanguage == Enums.AppLanguage.Japanese
-                ? "CSV保存中にエラーが発生しました。"
-                : "An error occurred while saving the CSV."
+            "write-temp" => LocalizationService.T("csvFile.saveError.writeTemp"),
+            "replace-target" => LocalizationService.T("csvFile.saveError.replaceTarget"),
+            "move-target" => LocalizationService.T("csvFile.saveError.moveTarget"),
+            _ => LocalizationService.T("csvFile.saveError.generic")
         };
 
-        var targetLine = LocalizationService.CurrentLanguage == Enums.AppLanguage.Japanese
-            ? $"対象ファイル: {csvException.TargetPath}"
-            : $"Target file: {csvException.TargetPath}";
+        var targetLine = LocalizationService.T("csvFile.saveError.targetFile", csvException.TargetPath);
 
         return $"{guidance}{Environment.NewLine}{Environment.NewLine}{targetLine}{Environment.NewLine}{csvException.InnerException?.Message ?? csvException.Message}";
     }
@@ -135,7 +125,8 @@ public static class CsvFileUtility
         }
 
         lines.AddRange(file.Rows.Select(row => ToCsvLine(row, file.Delimiter)));
-        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        var newLine = string.IsNullOrEmpty(file.NewLine) ? Environment.NewLine : file.NewLine;
+        return string.Join(newLine, lines) + newLine;
     }
 
     public static void WriteCsvFile(CsvFileItem file, bool hasHeaderRow, bool createBackup = true)

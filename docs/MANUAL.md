@@ -1,6 +1,6 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.0.8**
+Target version: **TagPrint Studio v1.0.9**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
@@ -614,6 +614,8 @@ CSV save from the Layout Designer uses the same CSV preservation rules as the ma
 
 ## 10. Barcode and QR Code Elements
 
+QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
+
 Supported types:
 
 | Type | Use |
@@ -994,7 +996,7 @@ Before release:
 
 1. Start the app.
 2. Confirm Japanese and English UI.
-3. Confirm the About dialog shows v1.0.8.
+3. Confirm the About dialog shows v1.0.9.
 4. Load sample CSV and folder CSV.
 5. Confirm UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS CSV behavior where possible.
 6. Confirm delimiter detection for comma, tab, and semicolon files.

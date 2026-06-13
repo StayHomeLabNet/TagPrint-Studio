@@ -2,10 +2,13 @@
 
 ## English
 
-### v1.0.8
+### v1.0.9
 
 #### Output Safety
 
+- Added stricter preflight validation for visible layout element geometry and invalid layout settings before output.
+- Added preflight warnings for layout fonts that are not installed on the current PC.
+- Extended the large-job warning from direct printing to PDF and PNG export.
 - Reworked PDF/PNG output replacement so canceled or failed output no longer risks deleting an existing file that had already been overwritten.
 - Output files are now written through unique `.partial-*` files before final replacement.
 - When an output path already exists, the existing file is temporarily moved to an operation backup and restored if cancellation or failure occurs.
@@ -38,11 +41,12 @@
 
 - Replaced remaining direct `L("Japanese", "English")` dialog strings in cleanup dialogs with shared localization resource keys.
 - Updated the application and test projects from `net10.0-windows` to `net8.0-windows` for LTS-friendly build, CI, and distribution.
+- Confirmed QR Code generation uses `QRCoder` NuGet package version `1.8.0` and aligned the documentation with the project file and package lock file.
 
 #### Documentation
 
-- Updated README files for v1.0.8.
-- Updated release notes for v1.0.8.
+- Updated README files for v1.0.9.
+- Updated release notes for v1.0.9.
 - Rewrote the English and Japanese manuals in the existing format with coverage for current features and safety behavior.
 
 ### v1.0.7
@@ -204,10 +208,13 @@
 
 ## Japanese
 
-### v1.0.8
+### v1.0.9
 
 #### 出力安全性
 
+- 出力前チェックで、表示中レイアウト要素の座標・サイズと不正なレイアウト設定をより厳密に検出するようにしました。
+- 現在のPCに存在しないフォントがレイアウトで使われている場合、出力前に警告するようにしました。
+- 大量ジョブ警告を直接印刷だけでなく PDF/PNG 出力にも適用しました。
 - PDF/PNG 出力の置換処理を見直し、キャンセルや失敗時に、上書き済みの既存ファイルまで削除してしまうリスクを減らしました。
 - 出力ファイルは一意な `.partial-*` ファイルへ書き込んでから最終ファイルへ置き換えます。
 - 出力先に既存ファイルがある場合は一時バックアップへ退避し、キャンセル/失敗時は復元します。
@@ -240,11 +247,12 @@
 
 - cleanup 系ダイアログに残っていた直接 `L("Japanese", "English")` 方式の文字列を共通ローカライズリソースキーへ移しました。
 - アプリ本体とテストプロジェクトを `net10.0-windows` から `net8.0-windows` へ変更し、LTS ベースでのビルド、CI、配布をしやすくしました。
+- QR Code 生成で使用している `QRCoder` NuGet パッケージが version `1.8.0` であることを確認し、プロジェクトファイルと package lock に合わせてドキュメント表記を揃えました。
 
 #### ドキュメント
 
-- README を v1.0.8 向けに更新しました。
-- リリースノートを v1.0.8 向けに更新しました。
+- README を v1.0.9 向けに更新しました。
+- リリースノートを v1.0.9 向けに更新しました。
 - 既存フォーマットを踏襲しつつ、英日マニュアルを現行機能と安全性に合わせて網羅的に書き直しました。
 
 ### v1.0.7

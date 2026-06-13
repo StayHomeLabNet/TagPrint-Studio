@@ -129,6 +129,8 @@ public sealed class CsvColumnService : ICsvColumnService
         FileName = file.FileName,
         EncodingName = file.EncodingName,
         Delimiter = file.Delimiter,
+        NewLine = file.NewLine,
+        Snapshot = file.Snapshot,
         RowCount = file.RowCount,
         ColumnCount = file.ColumnCount,
         Status = file.Status,
@@ -243,6 +245,8 @@ public sealed class CsvColumnService : ICsvColumnService
             plan.Original.ColumnCount = plan.Work.ColumnCount;
             plan.Original.Status = plan.Work.Status;
             plan.Original.Note = plan.Work.Note;
+            plan.Original.NewLine = plan.Work.NewLine;
+            plan.Original.Snapshot = plan.Work.Snapshot;
         }
     }
 

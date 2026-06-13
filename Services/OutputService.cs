@@ -1,9 +1,11 @@
 using System.Drawing.Imaging;
 using System.Drawing.Printing;
+using System.IO.Compression;
 using System.Globalization;
 using System.Text;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
+using System.Runtime.InteropServices;
 
 namespace TagPrintStudio.Services;
 
@@ -580,9 +582,7 @@ public static class SimplePdfWriter
             var contentObject = pageObject + 2;
             pageObjects.Add(pageObject);
 
-            using var ms = new MemoryStream();
-            image.Save(ms, ImageFormat.Jpeg);
-            var imageBytes = ms.ToArray();
+            var imageBytes = EncodeLosslessRgb(image);
 
             WriteObject(
                 stream,
@@ -593,7 +593,7 @@ public static class SimplePdfWriter
                 stream,
                 offsets,
                 imageObject,
-                $"<< /Type /XObject /Subtype /Image /Width {image.Width} /Height {image.Height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {imageBytes.Length} >>",
+                $"<< /Type /XObject /Subtype /Image /Width {image.Width} /Height {image.Height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {imageBytes.Length} >>",
                 imageBytes);
 
             var content = Ascii($"q\n{PdfNumber(pageWidthPoints)} 0 0 {PdfNumber(pageHeightPoints)} 0 0 cm\n/Im0 Do\nQ");
@@ -619,6 +619,50 @@ public static class SimplePdfWriter
             stream.Write(Ascii($"{offsets[objectNumber]:0000000000} 00000 n \n"));
         }
         stream.Write(Ascii($"trailer\n<< /Size {maxObjectNumber + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF"));
+    }
+
+    private static byte[] EncodeLosslessRgb(Bitmap image)
+    {
+        using var rgbImage = new Bitmap(image.Width, image.Height, PixelFormat.Format24bppRgb);
+        using (var graphics = Graphics.FromImage(rgbImage))
+        {
+            graphics.DrawImageUnscaled(image, 0, 0);
+        }
+
+        var rectangle = new Rectangle(0, 0, rgbImage.Width, rgbImage.Height);
+        var bitmapData = rgbImage.LockBits(rectangle, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        try
+        {
+            var sourceStride = Math.Abs(bitmapData.Stride);
+            var sourceBytes = new byte[sourceStride * rgbImage.Height];
+            Marshal.Copy(bitmapData.Scan0, sourceBytes, 0, sourceBytes.Length);
+
+            using var raw = new MemoryStream(rgbImage.Width * rgbImage.Height * 3);
+            var rowBytes = rgbImage.Width * 3;
+            for (var y = 0; y < rgbImage.Height; y++)
+            {
+                var rowOffset = y * sourceStride;
+                for (var x = 0; x < rowBytes; x += 3)
+                {
+                    raw.WriteByte(sourceBytes[rowOffset + x + 2]);
+                    raw.WriteByte(sourceBytes[rowOffset + x + 1]);
+                    raw.WriteByte(sourceBytes[rowOffset + x]);
+                }
+            }
+
+            using var compressed = new MemoryStream();
+            using (var zlib = new ZLibStream(compressed, CompressionLevel.SmallestSize, leaveOpen: true))
+            {
+                raw.Position = 0;
+                raw.CopyTo(zlib);
+            }
+
+            return compressed.ToArray();
+        }
+        finally
+        {
+            rgbImage.UnlockBits(bitmapData);
+        }
     }
 
     private static byte[] Ascii(string text) => Encoding.ASCII.GetBytes(text);

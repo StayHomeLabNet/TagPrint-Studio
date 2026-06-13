@@ -78,12 +78,12 @@ public sealed partial class MainForm : Form
             Text = ResolveUiText(text),
             Dock = DockStyle.Fill,
             AutoSize = false,
-            Height = 30,
+            Height = 28,
             AutoEllipsis = true,
             ForeColor = MutedTextColor,
             Font = new Font("Yu Gothic UI", 9F, FontStyle.Bold),
             TextAlign = alignRight ? ContentAlignment.MiddleRight : ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 2, 0, 2),
+            Margin = new Padding(0, 3, 0, 3),
             Padding = new Padding(left, 0, right, 0)
         };
         BindIfLocalized(label, text);
@@ -94,7 +94,8 @@ public sealed partial class MainForm : Form
     {
         Dock = DockStyle.Fill,
         DropDownStyle = ComboBoxStyle.DropDownList,
-        Margin = new Padding(2, 2, 4, 2),
+        Height = 28,
+        Margin = new Padding(2, 3, 4, 3),
         IntegralHeight = false
     };
 
@@ -102,12 +103,12 @@ public sealed partial class MainForm : Form
     {
         Dock = DockStyle.Fill,
         AutoSize = false,
-        Height = 30,
+        Height = 28,
         DecimalPlaces = 1,
         Minimum = -20,
         Maximum = 20,
         Increment = 0.1m,
-        Margin = new Padding(2, 2, 4, 2)
+        Margin = new Padding(2, 3, 4, 3)
     };
 
     private static Button Button(string text, EventHandler click, bool primary = false)

@@ -11,6 +11,8 @@ public interface ICsvLoaderService
 
 public sealed class CsvLoaderService : ICsvLoaderService
 {
+    internal const long MaxCsvFileBytes = 100L * 1024 * 1024;
+
     static CsvLoaderService()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -24,9 +26,11 @@ public sealed class CsvLoaderService : ICsvLoaderService
         {
             try
             {
+                ValidateFileSize(filePath);
                 var detection = DetectEncoding(filePath);
                 var content = File.ReadAllText(filePath, detection.Encoding);
                 var delimiter = DetectDelimiter(content);
+                var newLine = DetectNewLine(content);
                 var parsed = ParseCsvContent(content, delimiter)
                     .Select(NormalizeBlankRecord)
                     .ToList();
@@ -35,6 +39,8 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
                     Delimiter = delimiter,
+                    NewLine = newLine,
+                    Snapshot = SnapshotFor(filePath),
                     EncodingName = detection.Kind switch
                     {
                         EncodingKind.Utf8Bom => "UTF-8 BOM",
@@ -48,7 +54,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 if (parsed.Count == 0)
                 {
                     item.Status = CsvFileStatus.LoadFailed;
-                    item.Note = "データ行がありません。";
+                    item.Note = LocalizationService.T("csvLoader.issue.noDataRows");
                     result.Files.Add(item);
                     continue;
                 }
@@ -66,12 +72,12 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 if (item.ColumnCount != expectedColumns)
                 {
                     item.Status = CsvFileStatus.ColumnMismatch;
-                    item.Note = $"列数が一致しません。期待値 {expectedColumns}, 実際 {item.ColumnCount}";
+                    item.Note = LocalizationService.T("csvLoader.issue.columnCountMismatch", expectedColumns, item.ColumnCount);
                 }
                 else if (mismatchedRow is not null)
                 {
                     item.Status = CsvFileStatus.ColumnMismatch;
-                    item.Note = $"列数が一致しません。行 {mismatchedRow.RowNumber}: 期待値 {item.HeaderRow.Length}, 実際 {mismatchedRow.Row.Length}";
+                    item.Note = LocalizationService.T("csvLoader.issue.rowColumnCountMismatch", mismatchedRow.RowNumber, item.HeaderRow.Length, mismatchedRow.Row.Length);
                 }
                 else
                 {
@@ -82,7 +88,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     if (missing.Count > 0)
                     {
                         item.Status = CsvFileStatus.MissingRequiredField;
-                        item.Note = "必須項目不足: " + string.Join(", ", missing);
+                        item.Note = LocalizationService.T("csvLoader.issue.missingRequiredFields", string.Join(", ", missing));
                     }
                 }
 
@@ -91,7 +97,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     item.Note = string.IsNullOrWhiteSpace(item.Note)
                         ? "Encoding: Shift_JIS"
                         : $"{item.Note} / Encoding: Shift_JIS";
-                    result.Warnings.Add($"{item.FileName}: Shift_JIS として読み込みました。");
+                    result.Warnings.Add(LocalizationService.T("csvLoader.warning.shiftJis", item.FileName));
                 }
 
                 result.Files.Add(item);
@@ -105,13 +111,59 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     FileName = Path.GetFileName(filePath),
                     EncodingName = "",
                     Status = CsvFileStatus.LoadFailed,
+                    Snapshot = File.Exists(filePath) ? SnapshotFor(filePath) : new CsvFileSnapshot { FilePath = filePath, Exists = false },
                     Note = ex.Message
                 });
             }
         }
 
-        if (result.Files.Count == 0) result.Warnings.Add("CSVファイルが見つかりませんでした。");
+        if (result.Files.Count == 0) result.Warnings.Add(LocalizationService.T("csvLoader.warning.noCsvFiles"));
         return result;
+    }
+
+    private static void ValidateFileSize(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length > MaxCsvFileBytes)
+        {
+            throw new InvalidOperationException(LocalizationService.T("csvLoader.issue.fileTooLarge", FormatBytes(fileInfo.Length), FormatBytes(MaxCsvFileBytes)));
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        var mib = bytes / 1024d / 1024d;
+        return $"{mib:0.#} MB";
+    }
+
+    private static CsvFileSnapshot SnapshotFor(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        return new CsvFileSnapshot
+        {
+            FilePath = path,
+            Exists = fileInfo.Exists,
+            Length = fileInfo.Exists ? fileInfo.Length : 0,
+            LastWriteTimeUtc = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTime.MinValue
+        };
+    }
+
+    private static string DetectNewLine(string content)
+    {
+        for (var i = 0; i < content.Length; i++)
+        {
+            if (content[i] == '\r')
+            {
+                return i + 1 < content.Length && content[i + 1] == '\n' ? "\r\n" : "\r";
+            }
+
+            if (content[i] == '\n')
+            {
+                return "\n";
+            }
+        }
+
+        return Environment.NewLine;
     }
 
     private static EncodingDetectionResult DetectEncoding(string path)

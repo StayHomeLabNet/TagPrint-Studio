@@ -24,7 +24,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore TagPrintStudio.sln
+        run: dotnet restore TagPrintStudio.sln --locked-mode
+
+      - name: Package vulnerability scan
+        run: dotnet list TagPrintStudio.sln package --include-transitive --vulnerable
 
       - name: Build
         run: dotnet build TagPrintStudio.sln --configuration Release --no-restore

@@ -1,12 +1,12 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.0.8** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.0.9** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
 It supports CSV-based field mapping, layout editing, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
 
-## What's New in v1.0.8
+## What's New in v1.0.9
 
 - Improved output safety for PDF/PNG export.
   - Existing output files are no longer left vulnerable during cancel/failure paths.
@@ -29,7 +29,8 @@ It supports CSV-based field mapping, layout editing, PDF/PNG output, direct prin
 - Improved maintainability and deployment.
   - Remaining direct two-language UI strings in cleanup dialogs were moved to shared localization resources.
   - The application and test projects now target `.NET 8.0 Windows` for LTS-friendly development, CI, and distribution.
-- Updated README files, release notes, and English/Japanese manuals for v1.0.8.
+  - Documentation now matches the implemented `QRCoder` package version `1.8.0`.
+- Updated README files, release notes, and English/Japanese manuals for v1.0.9.
 
 ## What's New in v1.0.7
 
@@ -139,7 +140,7 @@ EAN-13 / JAN-13 behavior:
 - 13-digit values are validated.
 - Invalid values are reported by preview and preflight checks.
 
-QR Code generation uses the `QRCoder` NuGet package.
+QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 
 ### Preview and Output
 
@@ -300,9 +301,9 @@ bin/Release/net8.0-windows/win-x64/publish/
 ## NuGet Packages
 
 ```xml
-<PackageReference Include="QRCoder" Version="1.6.0" />
+<PackageReference Include="QRCoder" Version="1.8.0" />
 ```
 
 ## Version
 
-Current version: **v1.0.8**
+Current version: **v1.0.9**

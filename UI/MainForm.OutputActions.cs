@@ -13,7 +13,9 @@ public sealed partial class MainForm
         var options = Options(OutputFormatType.Png);
         settings.LastOutputFormat = OutputFormatType.Png;
         SaveCurrentSettings();
-        if (!ConfirmPrintTargets(options)) return;
+        var printTargetData = BuildPrintTargetData(options);
+        if (!ConfirmPrintTargets(printTargetData)) return;
+        if (!ConfirmLargeOutputJob(printTargetData)) return;
         if (!ConfirmOverwrite(options)) return;
         try
         {
@@ -43,7 +45,9 @@ public sealed partial class MainForm
         var options = Options(OutputFormatType.Pdf);
         settings.LastOutputFormat = OutputFormatType.Pdf;
         SaveCurrentSettings();
-        if (!ConfirmPrintTargets(options)) return;
+        var printTargetData = BuildPrintTargetData(options);
+        if (!ConfirmPrintTargets(printTargetData)) return;
+        if (!ConfirmLargeOutputJob(printTargetData)) return;
         if (!ConfirmOverwrite(options)) return;
         try
         {
@@ -185,6 +189,23 @@ public sealed partial class MainForm
         return MessageBox.Show(
             message,
             LocalizationService.T("main.confirm.largePrintTitle"),
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning) == DialogResult.Yes;
+    }
+
+    private bool ConfirmLargeOutputJob(PrintTargetConfirmationData data)
+    {
+        var threshold = settings.LargePrintPageWarningThreshold;
+        if (threshold <= 0 || data.PageCount < threshold) return true;
+
+        var message = LocalizationService.T(
+            "main.confirm.largeOutputBody",
+            data.PageCount,
+            data.TotalTags,
+            threshold);
+        return MessageBox.Show(
+            message,
+            LocalizationService.T("main.confirm.largeOutputTitle"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning) == DialogResult.Yes;
     }

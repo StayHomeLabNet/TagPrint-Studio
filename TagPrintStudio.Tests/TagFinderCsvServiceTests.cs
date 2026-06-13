@@ -26,9 +26,9 @@ public sealed partial class ServiceTests
             "tagPrintOrder",
             hasHeaderRow: true);
 
-        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], files[0].HeaderRow);
+        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], files[0].HeaderRow!);
         Assert.Equal(["A100", "Apple", "true", "1"], files[0].Rows[0]);
-        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], files[1].HeaderRow!);
         Assert.Equal(["B200", "Banana", "false", ""], files[1].Rows[0]);
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "second.csv.bak-*"));
@@ -89,9 +89,9 @@ public sealed partial class ServiceTests
         Assert.Contains(firstPath, ex.Message);
         Assert.Contains(failingPath, ex.Message);
         Assert.Equal("Code,Name\r\nA100,Apple\r\n", File.ReadAllText(firstPath, Encoding.UTF8));
-        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
         Assert.Equal(["A100", "Apple"], files[0].Rows[0]);
-        Assert.Equal(["Code", "Name"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[1].HeaderRow!);
         Assert.Equal(["B200", "Banana"], files[1].Rows[0]);
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
     }
@@ -380,7 +380,7 @@ public sealed partial class ServiceTests
             "tagPrintOrder",
             hasHeaderRow: true);
 
-        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], file.HeaderRow);
+        Assert.Equal(["Code", "Name", "tagPrint", "tagPrintOrder"], file.HeaderRow!);
         Assert.Equal(["A100", "Apple", "true", "1"], file.Rows[0]);
         Assert.Empty(file.Rows[1]);
         Assert.Equal(["B200", "Banana", "false", ""], file.Rows[2]);

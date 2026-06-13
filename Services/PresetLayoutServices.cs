@@ -26,8 +26,8 @@ public sealed class PresetService(AppPaths paths) : IPresetService
     public List<string> Validate(PresetFile preset)
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(preset.PresetName)) errors.Add("プリセット名が空です。");
-        foreach (var field in preset.Fields.Where(f => f.Enabled && string.IsNullOrWhiteSpace(f.DisplayName))) errors.Add("項目名が空のフィールドがあります。");
+        if (string.IsNullOrWhiteSpace(preset.PresetName)) errors.Add(LocalizationService.T("presetValidation.presetNameEmpty"));
+        foreach (var field in preset.Fields.Where(f => f.Enabled && string.IsNullOrWhiteSpace(f.DisplayName))) errors.Add(LocalizationService.T("presetValidation.fieldNameEmpty"));
         return errors;
     }
 }
@@ -51,19 +51,19 @@ public sealed class LayoutService(AppPaths paths) : ILayoutService
     public List<string> Validate(LayoutFile layout)
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(layout.LayoutName)) errors.Add("レイアウト名が空です。");
-        if (layout.Tag.Width <= 0 || layout.Tag.Height <= 0) errors.Add("タグサイズが不正です。");
-        if (layout.Margin.Top < 0 || layout.Margin.Bottom < 0 || layout.Margin.Left < 0 || layout.Margin.Right < 0) errors.Add("余白に負の値は指定できません。");
-        if (layout.Spacing.Horizontal < 0 || layout.Spacing.Vertical < 0) errors.Add("間隔に負の値は指定できません。");
-        if (!layout.Grid.AutoCalculate && (layout.Grid.Columns <= 0 || layout.Grid.Rows <= 0)) errors.Add("手動グリッドでは列数と行数を1以上にしてください。");
+        if (string.IsNullOrWhiteSpace(layout.LayoutName)) errors.Add(LocalizationService.T("layoutValidation.layoutNameEmpty"));
+        if (layout.Tag.Width <= 0 || layout.Tag.Height <= 0) errors.Add(LocalizationService.T("layoutValidation.invalidTagSize"));
+        if (layout.Margin.Top < 0 || layout.Margin.Bottom < 0 || layout.Margin.Left < 0 || layout.Margin.Right < 0) errors.Add(LocalizationService.T("layoutValidation.negativeMargin"));
+        if (layout.Spacing.Horizontal < 0 || layout.Spacing.Vertical < 0) errors.Add(LocalizationService.T("layoutValidation.negativeSpacing"));
+        if (!layout.Grid.AutoCalculate && (layout.Grid.Columns <= 0 || layout.Grid.Rows <= 0)) errors.Add(LocalizationService.T("layoutValidation.invalidManualGrid"));
 
         foreach (var element in layout.Elements)
         {
             var label = string.IsNullOrWhiteSpace(element.Name) ? element.ElementId : element.Name;
-            if (string.IsNullOrWhiteSpace(element.ElementId)) errors.Add("要素IDが空の要素があります。");
-            if (element.Width <= 0 || element.Height <= 0) errors.Add($"要素 '{label}' のサイズが不正です。");
-            if (element.X < 0 || element.Y < 0) errors.Add($"要素 '{label}' の座標に負の値は指定できません。");
-            if (element.X + element.Width > layout.Tag.Width || element.Y + element.Height > layout.Tag.Height) errors.Add($"要素 '{label}' がタグ範囲を超えています。");
+            if (string.IsNullOrWhiteSpace(element.ElementId)) errors.Add(LocalizationService.T("layoutValidation.elementIdEmpty"));
+            if (element.Width <= 0 || element.Height <= 0) errors.Add(LocalizationService.T("layoutValidation.invalidElementSize", label));
+            if (element.X < 0 || element.Y < 0) errors.Add(LocalizationService.T("layoutValidation.negativeElementPosition", label));
+            if (element.X + element.Width > layout.Tag.Width || element.Y + element.Height > layout.Tag.Height) errors.Add(LocalizationService.T("layoutValidation.elementOverflow", label));
         }
 
         return errors;

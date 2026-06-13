@@ -63,6 +63,7 @@ public static class PrintableRowService
                 FileName = csvFile.FileName,
                 EncodingName = csvFile.EncodingName,
                 Delimiter = csvFile.Delimiter,
+                NewLine = csvFile.NewLine,
                 HasHeaderRow = hasHeaderRow,
                 HeaderRow = hasHeaderRow ? csvFile.HeaderRow : null,
                 AllRows = csvFile.Rows,

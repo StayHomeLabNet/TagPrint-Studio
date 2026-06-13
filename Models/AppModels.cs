@@ -112,6 +112,7 @@ public class CsvFileItem
     public string FileName { get; set; } = "";
     public string EncodingName { get; set; } = "";
     public string Delimiter { get; set; } = ",";
+    public string NewLine { get; set; } = Environment.NewLine;
     public string EncodingDisplayName => Delimiter == CsvFileUtility.DefaultDelimiter
         ? EncodingName
         : $"{EncodingName} / Delimiter: {CsvFileUtility.DelimiterDisplayName(Delimiter)}";
@@ -121,6 +122,15 @@ public class CsvFileItem
     public string Note { get; set; } = "";
     public List<string[]> Rows { get; set; } = [];
     public string[]? HeaderRow { get; set; }
+    public CsvFileSnapshot Snapshot { get; set; } = new();
+}
+
+public class CsvFileSnapshot
+{
+    public string FilePath { get; set; } = "";
+    public long Length { get; set; }
+    public DateTime LastWriteTimeUtc { get; set; }
+    public bool Exists { get; set; }
 }
 
 public class CsvImportResult
@@ -221,6 +231,7 @@ public class CsvMergeCandidate
     public bool HeaderMatches { get; set; }
     public string Status { get; set; } = "";
     public string Note { get; set; } = "";
+    public CsvFileSnapshot Snapshot { get; set; } = new();
     public string RoleText => LocalizationService.CurrentLanguage == AppLanguage.Japanese
         ? (IsParent ? "親" : "子")
         : (IsParent ? "Parent" : "Child");
@@ -241,6 +252,7 @@ public class CsvMergePreview
     public bool DeleteBakFileAfterMerge { get; set; }
     public List<CsvMergeCandidate> Items { get; set; } = [];
     public List<string> AppendFilePaths { get; set; } = [];
+    public List<CsvFileSnapshot> FileSnapshots { get; set; } = [];
     public int AppendFileCount { get; set; }
     public int AppendRowCount { get; set; }
     public int SkipFileCount { get; set; }
@@ -263,6 +275,7 @@ public class CsvPreviewRowContext
     public string FileName { get; set; } = "";
     public string EncodingName { get; set; } = "";
     public string Delimiter { get; set; } = ",";
+    public string NewLine { get; set; } = Environment.NewLine;
     public bool HasHeaderRow { get; set; }
     public string[]? HeaderRow { get; set; }
     public List<string[]> AllRows { get; set; } = [];

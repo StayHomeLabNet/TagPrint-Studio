@@ -12,16 +12,15 @@ public sealed partial class MainForm
         var outputPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 17,
-            RowCount = 3,
+            ColumnCount = 1,
+            RowCount = 2,
             BackColor = SurfaceColor,
-            Padding = new Padding(12, 10, 12, 8),
-            Margin = new Padding(0, 10, 0, 0)
+            Padding = new Padding(12, 8, 12, 8),
+            Margin = new Padding(0, 6, 0, 0)
         };
         outputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
         outputScopeCombo = BottomComboBox();
         outputScopeCombo.Items.AddRange(OutputScopeItems());
@@ -77,11 +76,11 @@ public sealed partial class MainForm
         printOffsetXBox.ValueChanged += (_, _) => SaveCurrentSettings();
         printOffsetYBox.ValueChanged += (_, _) => SaveCurrentSettings();
 
-        outputFolderBox = new TextBox { MinimumSize = new Size(220, 0), Margin = new Padding(2, 6, 10, 6) };
+        outputFolderBox = new TextBox { MinimumSize = new Size(220, 0), Height = 28, Margin = new Padding(2, 3, 10, 3) };
         outputFolderBox.Leave += (_, _) => SaveCurrentSettings();
 
         recentOutputCombo = BottomComboBox();
-        recentOutputCombo.Margin = new Padding(2, 4, 4, 4);
+        recentOutputCombo.Margin = new Padding(2, 3, 4, 3);
         recentOutputCombo.SelectedIndexChanged += (_, _) => ApplyRecentOutputSelection();
 
         {
@@ -97,8 +96,8 @@ public sealed partial class MainForm
             outputPanel.ColumnCount = 1;
             outputPanel.RowCount = 2;
             outputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
             var row1 = new TableLayoutPanel
             {
@@ -109,7 +108,7 @@ public sealed partial class MainForm
                 Padding = new Padding(0)
             };
             row1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            row1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 540));
+            row1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 510));
             row1.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var leftSettings = OutputFlowRow();
@@ -128,27 +127,26 @@ public sealed partial class MainForm
             var rightSort = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 5,
+                ColumnCount = 4,
                 RowCount = 1,
                 Margin = new Padding(0),
-                Padding = new Padding(0, 0, 10, 0)
+                Padding = new Padding(0)
             };
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 124));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
             rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108));
             rightSort.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            printSortFieldCombo.Margin = new Padding(4, 3, 8, 3);
-            printSortCombo.Margin = new Padding(4, 3, 0, 3);
-            printSortValueTypeCombo.Margin = new Padding(8, 3, 4, 3);
-            rightSort.Controls.Add(printSortFieldCombo, 1, 0);
+            printSortFieldCombo.Margin = new Padding(4, 3, 6, 3);
+            printSortCombo.Margin = new Padding(4, 3, 4, 3);
+            printSortValueTypeCombo.Margin = new Padding(6, 3, 4, 3);
+            rightSort.Controls.Add(printSortFieldCombo, 0, 0);
             var printSortLabel = BottomLabelText("main.label.printSort", alignRight: true, right: 8);
-            printSortLabel.Margin = new Padding(0);
+            printSortLabel.Margin = new Padding(0, 3, 0, 3);
             printSortLabel.AutoEllipsis = false;
-            rightSort.Controls.Add(printSortLabel, 2, 0);
-            rightSort.Controls.Add(printSortCombo, 3, 0);
-            rightSort.Controls.Add(printSortValueTypeCombo, 4, 0);
+            rightSort.Controls.Add(printSortLabel, 1, 0);
+            rightSort.Controls.Add(printSortCombo, 2, 0);
+            rightSort.Controls.Add(printSortValueTypeCombo, 3, 0);
             row1.Controls.Add(rightSort, 1, 0);
             outputPanel.Controls.Add(row1, 0, 0);
 
@@ -161,7 +159,7 @@ public sealed partial class MainForm
                 Padding = new Padding(0)
             };
             row2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 740));
+            row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 730));
             row2.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var folderLeft = new TableLayoutPanel
@@ -176,7 +174,7 @@ public sealed partial class MainForm
             folderLeft.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             folderLeft.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             outputFolderBox.Dock = DockStyle.Fill;
-            outputFolderBox.Margin = new Padding(2, 15, 8, 0);
+            outputFolderBox.Margin = new Padding(2, 11, 8, 0);
             folderLeft.Controls.Add(BottomLabelText("main.label.outputFolder", alignRight: true, right: 8), 0, 0);
             folderLeft.Controls.Add(outputFolderBox, 1, 0);
             row2.Controls.Add(folderLeft, 0, 0);
@@ -201,9 +199,9 @@ public sealed partial class MainForm
             PrepareOutputButton(newPrintDirectButton, 132);
             PrepareOutputButton(newSelectOutputButton, 94);
             PrepareOutputButton(newOpenOutputButton, 82);
-            recentOutputCombo.Margin = new Padding(0, 15, 0, 0);
+            recentOutputCombo.Margin = new Padding(0, 11, 0, 0);
             var recentOutputControl = OutputRowControl(recentOutputCombo, 160);
-            recentOutputControl.Margin = new Padding(8, 15, 8, 0);
+            recentOutputControl.Margin = new Padding(6, 11, 6, 0);
             actionsRight.Controls.Add(recentOutputControl, 0, 0);
             actionsRight.Controls.Add(newSelectOutputButton, 1, 0);
             actionsRight.Controls.Add(newOpenOutputButton, 2, 0);
@@ -231,7 +229,7 @@ public sealed partial class MainForm
             var label = BottomLabelText(key, alignRight: true, right: 8);
             label.Dock = DockStyle.None;
             label.Width = width;
-            label.Height = 30;
+            label.Height = 28;
             label.Margin = new Padding(0, 3, 2, 3);
             return label;
         }
@@ -240,8 +238,8 @@ public sealed partial class MainForm
         {
             control.Dock = DockStyle.None;
             control.Width = width;
-            control.Height = 30;
-            control.Margin = new Padding(2, 3, 12, 3);
+            control.Height = 28;
+            control.Margin = new Padding(2, 3, 10, 3);
             return control;
         }
 
@@ -250,7 +248,7 @@ public sealed partial class MainForm
             button.AutoSize = false;
             button.Width = width;
             button.Height = 30;
-            button.Margin = new Padding(4, 15, 4, 0);
+            button.Margin = new Padding(4, 10, 4, 0);
         }
     }
 

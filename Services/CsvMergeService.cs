@@ -30,16 +30,12 @@ public sealed class CsvMergeService : ICsvMergeService
     {
         if (string.IsNullOrWhiteSpace(options.FolderPath) || !Directory.Exists(options.FolderPath))
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "対象フォルダーが見つかりません。"
-                : "The target folder could not be found.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.folderNotFound"));
         }
 
         if (string.IsNullOrWhiteSpace(options.ParentCsvPath))
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "親CSVを選択してください。"
-                : "Please choose a parent CSV.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.parentRequired"));
         }
 
         var csvPaths = Directory.GetFiles(options.FolderPath, "*.csv")
@@ -48,16 +44,12 @@ public sealed class CsvMergeService : ICsvMergeService
             .ToList();
         if (csvPaths.Count == 0)
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "対象フォルダーにCSVがありません。"
-                : "No CSV files were found in the target folder.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.noCsvFiles"));
         }
 
         if (!csvPaths.Contains(options.ParentCsvPath, StringComparer.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "親CSVが対象フォルダー内にありません。"
-                : "The parent CSV is not inside the target folder.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.parentOutsideFolder"));
         }
 
         var loadResult = csvLoader.LoadFiles(csvPaths, preset, options.HasHeaderRow);
@@ -68,9 +60,7 @@ public sealed class CsvMergeService : ICsvMergeService
         var parent = files.FirstOrDefault(file => string.Equals(file.FilePath, options.ParentCsvPath, StringComparison.OrdinalIgnoreCase));
         if (parent is null || !CanUseForMerge(parent))
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "親CSVの読み込みに失敗しました。"
-                : "The parent CSV could not be loaded.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.parentLoadFailed"));
         }
 
         var items = new List<CsvMergeCandidate>();
@@ -89,7 +79,8 @@ public sealed class CsvMergeService : ICsvMergeService
                 RowCount = file.RowCount,
                 HeaderMatches = isParent || HeadersMatch(parent.HeaderRow, file.HeaderRow),
                 Status = MergeStatus(file, isParent, parent),
-                Note = MergeNote(file, isParent, parent)
+                Note = MergeNote(file, isParent, parent),
+                Snapshot = SnapshotFor(file.FilePath)
             };
 
             if (!isParent && CanUseForMerge(file) && candidate.HeaderMatches)
@@ -115,6 +106,7 @@ public sealed class CsvMergeService : ICsvMergeService
             DeleteBakFileAfterMerge = options.DeleteBakFileAfterMerge,
             Items = items,
             AppendFilePaths = appendFilePaths,
+            FileSnapshots = items.Select(item => item.Snapshot).ToList(),
             AppendFileCount = appendFilePaths.Count,
             AppendRowCount = appendRowCount,
             SkipFileCount = skipFileCount,
@@ -126,40 +118,29 @@ public sealed class CsvMergeService : ICsvMergeService
     {
         if (preview.AppendFilePaths.Count == 0)
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "追記対象のCSVがありません。"
-                : "There are no CSV files to append.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.noAppendFiles"));
         }
 
         var targetPaths = new[] { preview.ParentCsvPath }.Concat(preview.AppendFilePaths).ToList();
+        EnsurePreviewedFilesUnchanged(preview, targetPaths);
         var loadResult = csvLoader.LoadFiles(targetPaths, preset, preview.HasHeaderRow);
         var files = loadResult.Files.ToDictionary(file => file.FilePath, StringComparer.OrdinalIgnoreCase);
 
         if (!files.TryGetValue(preview.ParentCsvPath, out var parent) || !CanUseForMerge(parent))
         {
-            throw new InvalidOperationException(LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                ? "親CSVの読み込みに失敗しました。"
-                : "The parent CSV could not be loaded.");
+            throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.parentLoadFailed"));
         }
 
         foreach (var childPath in preview.AppendFilePaths)
         {
             if (!files.TryGetValue(childPath, out var child) || !CanUseForMerge(child))
             {
-                throw new InvalidOperationException(string.Format(
-                    LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                        ? "子CSVの読み込みに失敗しました: {0}"
-                        : "A child CSV could not be loaded: {0}",
-                    Path.GetFileName(childPath)));
+                throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.childLoadFailed", Path.GetFileName(childPath)));
             }
 
             if (!HeadersMatch(parent.HeaderRow, child.HeaderRow))
             {
-                throw new InvalidOperationException(string.Format(
-                    LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                        ? "ヘッダーが一致しないためマージできません: {0}"
-                        : "Cannot merge because headers do not match: {0}",
-                    Path.GetFileName(childPath)));
+                throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.headerMismatch", Path.GetFileName(childPath)));
             }
         }
 
@@ -209,9 +190,7 @@ public sealed class CsvMergeService : ICsvMergeService
             CleanupSourceBackups(sourceBackups);
 
             throw new InvalidOperationException(
-                LocalizationService.CurrentLanguage == AppLanguage.Japanese
-                    ? "親CSVへの追記後に、マージ済み子CSVの削除に失敗したため、親CSVをバックアップから復元しました。削除に失敗した子CSVを再マージすると重複する可能性があるため、ファイル状態を確認してください。"
-                    : "After appending rows to the parent CSV, deleting a merged child CSV failed, so the parent CSV was restored from backup. Check the file state before merging again because retrying with an undeleted child CSV could create duplicate rows.",
+                LocalizationService.T("csvMerge.issue.deleteMergedSourceFailedRestored"),
                 ex);
         }
         finally
@@ -234,6 +213,51 @@ public sealed class CsvMergeService : ICsvMergeService
             AppendedRowCount = preview.AppendRowCount,
             DeletedSourceFileCount = deletedSourceFileCount,
             DeletedBakFileCount = deletedBakFileCount
+        };
+    }
+
+    private static void EnsurePreviewedFilesUnchanged(CsvMergePreview preview, IEnumerable<string> targetPaths)
+    {
+        var snapshots = preview.FileSnapshots
+            .Where(snapshot => !string.IsNullOrWhiteSpace(snapshot.FilePath))
+            .ToDictionary(snapshot => snapshot.FilePath, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var targetPath in targetPaths)
+        {
+            if (!snapshots.TryGetValue(targetPath, out var snapshot))
+            {
+                throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.previewExpired", Path.GetFileName(targetPath)));
+            }
+
+            if (!SnapshotMatches(snapshot, targetPath))
+            {
+                throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.fileChangedAfterPreview", Path.GetFileName(targetPath)));
+            }
+        }
+    }
+
+    private static bool SnapshotMatches(CsvFileSnapshot snapshot, string path)
+    {
+        var fileInfo = new FileInfo(path);
+        if (!fileInfo.Exists)
+        {
+            return !snapshot.Exists;
+        }
+
+        return snapshot.Exists
+            && snapshot.Length == fileInfo.Length
+            && snapshot.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc;
+    }
+
+    private static CsvFileSnapshot SnapshotFor(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        return new CsvFileSnapshot
+        {
+            FilePath = path,
+            Exists = fileInfo.Exists,
+            Length = fileInfo.Exists ? fileInfo.Length : 0,
+            LastWriteTimeUtc = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTime.MinValue
         };
     }
 
@@ -342,35 +366,35 @@ public sealed class CsvMergeService : ICsvMergeService
     {
         if (isParent)
         {
-            return LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "親CSV" : "Parent";
+            return LocalizationService.T("csvMerge.status.parent");
         }
 
         if (!CanUseForMerge(file))
         {
-            return LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "読込エラー" : "Load Error";
+            return LocalizationService.T("csvMerge.status.loadError");
         }
 
         return HeadersMatch(parent.HeaderRow, file.HeaderRow)
-            ? (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "追記対象" : "Append")
-            : (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "スキップ" : "Skip");
+            ? (LocalizationService.T("csvMerge.status.append"))
+            : (LocalizationService.T("csvMerge.status.skip"));
     }
 
     private static string MergeNote(CsvFileItem file, bool isParent, CsvFileItem parent)
     {
         if (isParent)
         {
-            return LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "親CSV" : "Parent CSV";
+            return LocalizationService.T("csvMerge.note.parent");
         }
 
         if (!CanUseForMerge(file))
         {
             return string.IsNullOrWhiteSpace(file.Note)
-                ? (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "読み込みに失敗しました" : "The file could not be loaded.")
+                ? LocalizationService.T("csvMerge.note.loadFailed")
                 : file.Note;
         }
 
         return HeadersMatch(parent.HeaderRow, file.HeaderRow)
-            ? (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "ヘッダー一致" : "Headers match")
-            : (LocalizationService.CurrentLanguage == AppLanguage.Japanese ? "ヘッダー不一致" : "Headers do not match");
+            ? (LocalizationService.T("csvMerge.note.headersMatch"))
+            : (LocalizationService.T("csvMerge.note.headersDoNotMatch"));
     }
 }

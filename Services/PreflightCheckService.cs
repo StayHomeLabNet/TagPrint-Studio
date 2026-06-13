@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Drawing.Text;
 using System.Globalization;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
@@ -32,8 +33,10 @@ public sealed class PreflightCheckService : IPreflightCheckService
         var warnings = new List<string>();
         var printableRowCount = 0;
 
-        errors.AddRange(CheckLayoutBounds(layout));
+        errors.AddRange(CheckLayoutSettings(layout));
+        errors.AddRange(CheckVisibleElementGeometry(layout));
         errors.AddRange(CheckImages(layout));
+        warnings.AddRange(CheckFontWarnings(layout));
         warnings.AddRange(CheckBarcodeWarnings(layout));
         errors.AddRange(CheckBarcodeErrors(layout, preset));
 
@@ -70,21 +73,102 @@ public sealed class PreflightCheckService : IPreflightCheckService
 
     private static int CsvRowNumber(int rowIndex, bool hasHeaderRow) => rowIndex + (hasHeaderRow ? 2 : 1);
 
-    private static IEnumerable<string> CheckLayoutBounds(LayoutFile layout)
+    private static IEnumerable<LayoutElement> VisibleElements(LayoutFile layout) =>
+        layout.Elements?.Where(element => element.Visible) ?? Enumerable.Empty<LayoutElement>();
+
+    private static IEnumerable<string> CheckLayoutSettings(LayoutFile layout)
     {
-        foreach (var element in layout.Elements)
+        if (layout.Tag is null || layout.Tag.Width <= 0 || layout.Tag.Height <= 0)
         {
-            var label = string.IsNullOrWhiteSpace(element.Name) ? element.ElementId : element.Name;
-            if (element.X + element.Width > layout.Tag.Width || element.Y + element.Height > layout.Tag.Height)
+            yield return LocalizationService.T("layoutValidation.invalidTagSize");
+        }
+
+        if (layout.Margin is null || layout.Margin.Top < 0 || layout.Margin.Bottom < 0 || layout.Margin.Left < 0 || layout.Margin.Right < 0)
+        {
+            yield return LocalizationService.T("layoutValidation.negativeMargin");
+        }
+
+        if (layout.Spacing is null || layout.Spacing.Horizontal < 0 || layout.Spacing.Vertical < 0)
+        {
+            yield return LocalizationService.T("layoutValidation.negativeSpacing");
+        }
+
+        if (layout.Grid is null || (!layout.Grid.AutoCalculate && (layout.Grid.Columns <= 0 || layout.Grid.Rows <= 0)))
+        {
+            yield return LocalizationService.T("layoutValidation.invalidManualGrid");
+        }
+    }
+
+    private static IEnumerable<string> CheckVisibleElementGeometry(LayoutFile layout)
+    {
+        foreach (var element in VisibleElements(layout))
+        {
+            var label = ElementLabel(element);
+            if (string.IsNullOrWhiteSpace(element.ElementId))
             {
-                yield return LocalizationService.T("preflight.issue.elementOverflow", label);
+                yield return LocalizationService.T("layoutValidation.elementIdEmpty");
+            }
+
+            if (element.Width <= 0 || element.Height <= 0)
+            {
+                yield return LocalizationService.T("layoutValidation.invalidElementSize", label);
+            }
+
+            if (element.X < 0 || element.Y < 0)
+            {
+                yield return LocalizationService.T("layoutValidation.negativeElementPosition", label);
+            }
+
+            if (layout.Tag is not null &&
+                layout.Tag.Width > 0 &&
+                layout.Tag.Height > 0 &&
+                (element.X + element.Width > layout.Tag.Width || element.Y + element.Height > layout.Tag.Height))
+            {
+                yield return LocalizationService.T("layoutValidation.elementOverflow", label);
             }
         }
     }
 
+    private static IEnumerable<string> CheckFontWarnings(LayoutFile layout)
+    {
+        var warnings = new List<string>();
+        HashSet<string> installedFontNames;
+        try
+        {
+            using var installedFonts = new InstalledFontCollection();
+            installedFontNames = installedFonts.Families
+                .Select(family => family.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return warnings;
+        }
+
+        var checkedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var element in VisibleElements(layout).Where(UsesFont))
+        {
+            var fontFamily = (element.FontFamily ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(fontFamily) || !checkedFonts.Add(fontFamily)) continue;
+
+            if (!installedFontNames.Contains(fontFamily))
+            {
+                warnings.Add(LocalizationService.T("preflight.issue.fontMissing", ElementLabel(element), fontFamily));
+            }
+        }
+
+        return warnings;
+    }
+
+    private static bool UsesFont(LayoutElement element)
+    {
+        return element.ElementType is LayoutElementType.FieldText or LayoutElementType.StaticText
+            || (element.ElementType == LayoutElementType.Barcode && element.BarcodeShowText);
+    }
+
     private static IEnumerable<string> CheckImages(LayoutFile layout)
     {
-        foreach (var element in layout.Elements.Where(element => element.ElementType == LayoutElementType.Image))
+        foreach (var element in VisibleElements(layout).Where(element => element.ElementType == LayoutElementType.Image))
         {
             if (string.IsNullOrWhiteSpace(element.ImagePath)) continue;
 
@@ -140,7 +224,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
 
     private static IEnumerable<string> CheckBarcodeWarnings(LayoutFile layout)
     {
-        foreach (var element in layout.Elements.Where(element => element.Visible && element.ElementType == LayoutElementType.Barcode))
+        foreach (var element in VisibleElements(layout).Where(element => element.ElementType == LayoutElementType.Barcode))
         {
             var label = ElementLabel(element);
             var recommended = RecommendedBarcodeSize(element);
@@ -159,7 +243,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
 
     private static IEnumerable<string> CheckBarcodeErrors(LayoutFile layout, PresetFile preset)
     {
-        foreach (var element in layout.Elements.Where(element => element.Visible && element.ElementType == LayoutElementType.Barcode))
+        foreach (var element in VisibleElements(layout).Where(element => element.ElementType == LayoutElementType.Barcode))
         {
             var label = ElementLabel(element);
             if (!string.IsNullOrWhiteSpace(element.FieldId) && !preset.Fields.Any(field => string.Equals(field.FieldId, element.FieldId, StringComparison.OrdinalIgnoreCase)))
@@ -192,7 +276,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
 
     private static IEnumerable<string> CheckBarcodeValues(LayoutFile layout, PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
     {
-        foreach (var element in layout.Elements.Where(element => element.Visible && element.ElementType == LayoutElementType.Barcode))
+        foreach (var element in VisibleElements(layout).Where(element => element.ElementType == LayoutElementType.Barcode))
         {
             var label = BarcodeLabel(element, preset);
             var value = BarcodeValue(element, preset, row);

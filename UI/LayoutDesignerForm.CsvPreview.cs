@@ -235,7 +235,8 @@ public sealed partial class LayoutDesignerForm
                 }
                 lines.AddRange(first.AllRows.Select(row => CsvFileUtility.ToCsvLine(row, first.Delimiter)));
 
-                var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
+                var newLine = string.IsNullOrEmpty(first.NewLine) ? Environment.NewLine : first.NewLine;
+                var content = string.Join(newLine, lines) + newLine;
                 CsvBackupUtility.CreateTimestampedBackup(first.FilePath);
                 CsvFileUtility.WriteAllTextAtomic(first.FilePath, content, CsvFileUtility.EncodingForCsv(first));
             }

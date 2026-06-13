@@ -120,6 +120,11 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
         long totalUncompressedBytes = 0;
 
         using var archive = ZipFile.OpenRead(zipPath);
+        if (archive.Entries.Count > MaxBackupEntryCount)
+        {
+            throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.tooManyEntries"));
+        }
+
         foreach (var entry in archive.Entries)
         {
             var normalized = entry.FullName.Replace('\\', '/').TrimStart('/');
@@ -138,13 +143,13 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
 
             if (normalized.Length > MaxBackupEntryNameLength)
             {
-                throw new InvalidOperationException("The ZIP contains a path that is too long.");
+                throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.pathTooLong"));
             }
 
             validatedEntryCount++;
             if (validatedEntryCount > MaxBackupEntryCount)
             {
-                throw new InvalidOperationException("The ZIP contains too many files.");
+                throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.tooManyEntries"));
             }
 
             if (string.IsNullOrWhiteSpace(relativePath))
@@ -161,7 +166,7 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
             var allowedRoot = Path.GetFullPath(Path.Combine(extractRoot, root)) + Path.DirectorySeparatorChar;
             if (!destinationPath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("The ZIP contains an invalid path.");
+                throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.invalidPath"));
             }
 
             if (IsDirectoryEntry(entry))
@@ -172,13 +177,13 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
 
             if (entry.Length > MaxBackupSingleFileBytes)
             {
-                throw new InvalidOperationException("The ZIP contains a file that is too large.");
+                throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.fileTooLarge"));
             }
 
             totalUncompressedBytes += entry.Length;
             if (totalUncompressedBytes > MaxBackupTotalUncompressedBytes)
             {
-                throw new InvalidOperationException("The ZIP is too large to import.");
+                throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.zipTooLarge"));
             }
 
             var destinationDir = Path.GetDirectoryName(destinationPath);
@@ -192,7 +197,7 @@ public sealed class SettingsArchiveService(AppPaths paths) : ISettingsArchiveSer
 
         if (validatedEntryCount == 0 || !allowedRootSet.Any(root => Directory.Exists(Path.Combine(extractRoot, root))))
         {
-            throw new InvalidOperationException("The ZIP does not contain layouts, presets, recent, or settings folders.");
+            throw new InvalidOperationException(LocalizationService.T("settingsArchive.issue.noSettingsFolders"));
         }
     }
 

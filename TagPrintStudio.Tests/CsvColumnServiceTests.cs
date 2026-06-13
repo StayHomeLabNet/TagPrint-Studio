@@ -23,9 +23,9 @@ public sealed partial class ServiceTests
         Assert.Equal("FontSize", result.ColumnName);
         Assert.Equal(2, result.ColumnIndex);
         Assert.Equal(2, result.UpdatedFileCount);
-        Assert.Equal(["Code", "Name", "FontSize"], files[0].HeaderRow);
+        Assert.Equal(["Code", "Name", "FontSize"], files[0].HeaderRow!);
         Assert.Equal(["A100", "Apple", ""], files[0].Rows[0]);
-        Assert.Equal(["Code", "Name", "FontSize"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name", "FontSize"], files[1].HeaderRow!);
         Assert.Equal(["B200", "Banana", ""], files[1].Rows[0]);
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "second.csv.bak-*"));
@@ -63,8 +63,8 @@ public sealed partial class ServiceTests
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
         Assert.Contains("different header column counts", exception.Message);
-        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
-        Assert.Equal(["Code", "Name", "Price"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
+        Assert.Equal(["Code", "Name", "Price"], files[1].HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
         Assert.DoesNotContain("FontSize", File.ReadAllText(secondPath, Encoding.UTF8));
     }
@@ -82,7 +82,7 @@ public sealed partial class ServiceTests
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
         Assert.Contains("different column counts", exception.Message);
-        Assert.Equal(["Code", "Name"], file.HeaderRow);
+        Assert.Equal(["Code", "Name"], file.HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(path, Encoding.UTF8));
     }
 
@@ -103,8 +103,8 @@ public sealed partial class ServiceTests
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
         Assert.Contains("different header names", exception.Message);
-        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
-        Assert.Equal(["ItemCode", "Stock"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
+        Assert.Equal(["ItemCode", "Stock"], files[1].HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
         Assert.DoesNotContain("FontSize", File.ReadAllText(secondPath, Encoding.UTF8));
     }
@@ -137,9 +137,9 @@ public sealed partial class ServiceTests
             service.AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
         Assert.Contains("transactionally", ex.Message);
-        Assert.Equal(["Code", "Name"], files[0].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
         Assert.Equal(["A100", "Apple"], files[0].Rows[0]);
-        Assert.Equal(["Code", "Name"], files[1].HeaderRow);
+        Assert.Equal(["Code", "Name"], files[1].HeaderRow!);
         Assert.Equal(["B200", "Banana"], files[1].Rows[0]);
         Assert.Equal("Code,Name\r\nA100,Apple\r\n", File.ReadAllText(firstPath, Encoding.UTF8));
         Assert.Equal("Code,Name\r\nB200,Banana\r\n", File.ReadAllText(secondPath, Encoding.UTF8));

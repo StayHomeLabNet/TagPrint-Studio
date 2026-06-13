@@ -184,7 +184,7 @@ public sealed partial class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
         Controls.Add(root);
 
         menuStrip = BuildMenuStrip();

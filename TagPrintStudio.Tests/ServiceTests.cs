@@ -859,50 +859,68 @@ public sealed partial class ServiceTests
     [Fact]
     public void SettingsArchiveService_ImportBackup_RejectsSingleOversizedFileAndKeepsExistingSettings()
     {
+        var previousLanguage = LocalizationService.CurrentLanguage;
+        LocalizationService.SetLanguage(AppLanguage.English);
         using var temp = new TempDirectory();
-        var paths = TestAppPaths(temp);
-        paths.EnsureDirectories();
-        var existingLayoutPath = Path.Combine(paths.Layouts, "existing.tpslayout");
-        File.WriteAllText(existingLayoutPath, "existing-layout", Encoding.UTF8);
-
-        var zipPath = Path.Combine(temp.DirectoryPath, "oversized.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        try
         {
-            var entry = archive.CreateEntry("layouts/large.tpslayout", CompressionLevel.NoCompression);
-            using var stream = entry.Open();
-            var buffer = new byte[1024 * 1024];
-            for (var i = 0; i < 21; i++)
-            {
-                stream.Write(buffer, 0, buffer.Length);
-            }
-        }
+            var paths = TestAppPaths(temp);
+            paths.EnsureDirectories();
+            var existingLayoutPath = Path.Combine(paths.Layouts, "existing.tpslayout");
+            File.WriteAllText(existingLayoutPath, "existing-layout", Encoding.UTF8);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
-        Assert.Contains("too large", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("existing-layout", File.ReadAllText(existingLayoutPath, Encoding.UTF8));
+            var zipPath = Path.Combine(temp.DirectoryPath, "oversized.zip");
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("layouts/large.tpslayout", CompressionLevel.NoCompression);
+                using var stream = entry.Open();
+                var buffer = new byte[1024 * 1024];
+                for (var i = 0; i < 21; i++)
+                {
+                    stream.Write(buffer, 0, buffer.Length);
+                }
+            }
+
+            var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
+            Assert.Contains("too large", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("existing-layout", File.ReadAllText(existingLayoutPath, Encoding.UTF8));
+        }
+        finally
+        {
+            LocalizationService.SetLanguage(previousLanguage);
+        }
     }
 
     [Fact]
     public void SettingsArchiveService_ImportBackup_RejectsTooManyFilesAndKeepsExistingSettings()
     {
+        var previousLanguage = LocalizationService.CurrentLanguage;
+        LocalizationService.SetLanguage(AppLanguage.English);
         using var temp = new TempDirectory();
-        var paths = TestAppPaths(temp);
-        paths.EnsureDirectories();
-        var existingSettingsPath = Path.Combine(paths.Settings, "appsettings.json");
-        File.WriteAllText(existingSettingsPath, "existing-settings", Encoding.UTF8);
-
-        var zipPath = Path.Combine(temp.DirectoryPath, "too-many-files.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        try
         {
-            for (var i = 0; i < 5001; i++)
-            {
-                archive.CreateEntry($"settings/file-{i:D4}.json");
-            }
-        }
+            var paths = TestAppPaths(temp);
+            paths.EnsureDirectories();
+            var existingSettingsPath = Path.Combine(paths.Settings, "appsettings.json");
+            File.WriteAllText(existingSettingsPath, "existing-settings", Encoding.UTF8);
 
-        var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
-        Assert.Contains("too many", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("existing-settings", File.ReadAllText(existingSettingsPath, Encoding.UTF8));
+            var zipPath = Path.Combine(temp.DirectoryPath, "too-many-files.zip");
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                for (var i = 0; i < 5001; i++)
+                {
+                    archive.CreateEntry($"settings/file-{i:D4}.json");
+                }
+            }
+
+            var ex = Assert.Throws<InvalidOperationException>(() => new SettingsArchiveService(paths).ImportBackup(zipPath));
+            Assert.Contains("too many", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("existing-settings", File.ReadAllText(existingSettingsPath, Encoding.UTF8));
+        }
+        finally
+        {
+            LocalizationService.SetLanguage(previousLanguage);
+        }
     }
 
     [Fact]

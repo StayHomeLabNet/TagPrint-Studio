@@ -91,7 +91,7 @@ public sealed partial class ServiceTests
 
         Assert.Equal(CsvFileStatus.Ok, file.Status);
         Assert.Equal("UTF-16 LE BOM", file.EncodingName);
-        Assert.Equal(["Code", "Name"], file.HeaderRow);
+        Assert.Equal(["Code", "Name"], file.HeaderRow!);
         Assert.Equal("りんご", file.Rows[0][1]);
     }
 
@@ -107,7 +107,7 @@ public sealed partial class ServiceTests
 
         Assert.Equal(CsvFileStatus.Ok, file.Status);
         Assert.Equal("UTF-16 BE BOM", file.EncodingName);
-        Assert.Equal(["Code", "Name"], file.HeaderRow);
+        Assert.Equal(["Code", "Name"], file.HeaderRow!);
         Assert.Equal("りんご", file.Rows[0][1]);
     }
 
@@ -191,7 +191,7 @@ public sealed partial class ServiceTests
         var file = Assert.Single(result.Files);
 
         Assert.Equal(CsvFileStatus.Ok, file.Status);
-        Assert.Equal(["Code", "Name", "Price"], file.HeaderRow);
+        Assert.Equal(["Code", "Name", "Price"], file.HeaderRow!);
         Assert.Equal(["A001", "Apple", "120"], file.Rows.Single());
         Assert.Equal("\t", file.Delimiter);
         Assert.Contains("Delimiter: Tab", file.EncodingDisplayName);
