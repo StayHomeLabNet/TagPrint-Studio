@@ -85,7 +85,7 @@ public sealed partial class MainForm : Form
     {
         var scope = CurrentOutputScope();
         var files = PrintableRowService.SelectFiles(scope, csvRows, CurrentCsv());
-        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName());
+        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName(), settings.PreviewRowLimit);
     }
 
     private bool SavePreset()

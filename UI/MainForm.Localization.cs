@@ -25,6 +25,7 @@ public sealed partial class MainForm : Form
         {
             outputDpiCombo.SelectedItem = "300";
         }
+        pdfRenderModeCombo.SelectedIndex = settings.LastPdfRenderMode == PdfRenderMode.VectorText ? 1 : 0;
         printScalingCombo.SelectedIndex = settings.LastPrintScalingMode == PrintScalingMode.FitPrintableArea ? 1 : 0;
         printSortCombo.SelectedIndex = settings.LastPrintSortMode switch
         {

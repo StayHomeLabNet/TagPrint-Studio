@@ -2,6 +2,31 @@
 
 ## English
 
+### v1.1.0
+
+#### PDF Rendering
+
+- Added a PDF render mode option in the main output controls.
+- `Raster` keeps the existing compatibility-focused image-based PDF output.
+- `Vector Text` uses PDFsharp to add selectable vector text for text, CSV field, and price elements over the compatible rendered page background.
+- Vector Text PDF output now embeds compatible selected layout fonts directly when possible.
+- The Layout Designer font list now marks Vector Text PDF font compatibility with `PDF OK` or the embedded fallback font.
+- Preflight checks now show localized, element-level warnings when Vector Text PDF output must substitute a layout font.
+- Added PDFsharp 6.2.2 as the vector-text PDF dependency.
+
+#### CSV Loading and Preview Limits
+
+- Changed CSV parsing to read from `TextReader` streams instead of loading the entire CSV text into memory first.
+- Added a per-file maximum data-row limit, while keeping the existing 100 MB file-size guard.
+- The row limit counts data rows and ignores the header row and blank physical rows.
+- Added a preview-row limit for rows passed into Layout Designer and Tag Finder preview flows.
+- Added a Settings menu dialog for changing the maximum CSV data rows and preview-row limit.
+
+#### Documentation and Version
+
+- Updated version metadata to v1.1.0.
+- Updated README files, release notes, and English/Japanese manuals for v1.1.0.
+
 ### v1.0.9
 
 #### Output Safety
@@ -207,6 +232,31 @@
 ---
 
 ## Japanese
+
+### v1.1.0
+
+#### PDF 描画
+
+- メイン画面の出力設定に PDF 描画方式を追加しました。
+- `ラスター` は従来の互換性重視の画像ベース PDF 出力です。
+- `ベクターテキスト` は PDFsharp を使用し、互換用のページ背景の上に、テキスト、CSV フィールド、価格要素を選択可能なベクターテキストとして重ねます。
+- ベクターテキスト PDF は、対応するレイアウトフォントを可能な範囲で直接埋め込みます。
+- レイアウトデザイナーのフォント一覧に、ベクターテキスト PDF での埋め込み可否を `PDF OK` または代替フォント名で表示するようにしました。
+- ベクターテキスト PDF 出力でフォント代替が必要な場合、出力前チェックにローカライズ済みの要素単位警告を表示します。
+- ベクターテキスト PDF 用の依存関係として PDFsharp 6.2.2 を追加しました。
+
+#### CSV 読み込みとプレビュー上限
+
+- CSV 全文を先に読み込む方式から、`TextReader` ストリームを使って順次解析する方式へ変更しました。
+- 既存の 100 MB ファイルサイズ制限を維持しつつ、CSV ファイルごとの最大データ行数を追加しました。
+- 行数上限はデータ行を対象にし、ヘッダー行と完全な空行は数えません。
+- レイアウトデザイナーやタグファインダーのプレビューに渡す行数に上限を適用しました。
+- 設定メニューから CSV 最大データ行数とプレビュー行数を変更できるようにしました。
+
+#### ドキュメントとバージョン
+
+- バージョン情報を v1.1.0 に更新しました。
+- README、リリースノート、英日マニュアルを v1.1.0 向けに更新しました。
 
 ### v1.0.9
 

@@ -56,9 +56,9 @@ public sealed class AppStorageLocationService : IAppStorageLocationService
             throw new InvalidOperationException("App data root is required.");
         }
 
-        if (IsInsideManagedSource(normalizedRoot, currentPaths))
+        if (ConflictsWithManagedSource(normalizedRoot, currentPaths))
         {
-            throw new InvalidOperationException("The selected app data root cannot be inside the current app data folders.");
+            throw new InvalidOperationException(LocalizationService.T("appStorage.issue.conflictsWithManagedSource"));
         }
 
         var targetPaths = AppPaths.FromAppDataRoot(normalizedRoot);
@@ -107,7 +107,7 @@ public sealed class AppStorageLocationService : IAppStorageLocationService
         return Path.GetFullPath(path.Trim()).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
-    private static bool IsInsideManagedSource(string selectedRoot, AppPaths currentPaths)
+    private static bool ConflictsWithManagedSource(string selectedRoot, AppPaths currentPaths)
     {
         var managedSources = new[]
         {
@@ -119,7 +119,9 @@ public sealed class AppStorageLocationService : IAppStorageLocationService
             currentPaths.Recent
         };
 
-        return managedSources.Any(source => IsSubPathOf(selectedRoot, source));
+        return managedSources.Any(source =>
+            IsSubPathOf(selectedRoot, source) ||
+            IsSubPathOf(source, selectedRoot));
     }
 
     private static bool IsSubPathOf(string path, string parentPath)

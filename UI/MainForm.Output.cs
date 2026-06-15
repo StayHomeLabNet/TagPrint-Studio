@@ -19,7 +19,7 @@ public sealed partial class MainForm
             Margin = new Padding(0, 6, 0, 0)
         };
         outputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
         outputScopeCombo = BottomComboBox();
@@ -36,6 +36,11 @@ public sealed partial class MainForm
         outputDpiCombo.Items.AddRange(["150", "300", "600"]);
         outputDpiCombo.SelectedItem = "300";
         outputDpiCombo.SelectedIndexChanged += (_, _) => SaveCurrentSettings();
+
+        pdfRenderModeCombo = BottomComboBox();
+        pdfRenderModeCombo.Items.AddRange(PdfRenderModeItems());
+        pdfRenderModeCombo.SelectedIndex = 0;
+        pdfRenderModeCombo.SelectedIndexChanged += (_, _) => SaveCurrentSettings();
 
         printScalingCombo = BottomComboBox();
         printScalingCombo.Items.AddRange(["実寸優先", "印刷可能領域に合わせる"]);
@@ -96,7 +101,7 @@ public sealed partial class MainForm
             outputPanel.ColumnCount = 1;
             outputPanel.RowCount = 2;
             outputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             outputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
             var row1 = new TableLayoutPanel
@@ -108,20 +113,22 @@ public sealed partial class MainForm
                 Padding = new Padding(0)
             };
             row1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            row1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 510));
+            row1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 450));
             row1.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var leftSettings = OutputFlowRow();
-            leftSettings.Controls.Add(OutputRowLabel("main.label.outputScope", 82));
-            leftSettings.Controls.Add(OutputRowControl(outputScopeCombo, 150));
-            leftSettings.Controls.Add(OutputRowLabel("main.label.dpi", 44));
+            leftSettings.Controls.Add(OutputRowLabel("main.label.outputScope", 88));
+            leftSettings.Controls.Add(OutputRowControl(outputScopeCombo, 148));
+            leftSettings.Controls.Add(OutputRowLabel("main.label.dpi", 48));
             leftSettings.Controls.Add(OutputRowControl(outputDpiCombo, 56));
-            leftSettings.Controls.Add(OutputRowLabel("main.label.print", 58));
-            leftSettings.Controls.Add(OutputRowControl(printScalingCombo, 172));
-            leftSettings.Controls.Add(OutputRowLabel("main.label.printOffsetX", 72));
-            leftSettings.Controls.Add(OutputRowControl(printOffsetXBox, 62));
-            leftSettings.Controls.Add(OutputRowLabel("main.label.printOffsetY", 72));
-            leftSettings.Controls.Add(OutputRowControl(printOffsetYBox, 62));
+            leftSettings.Controls.Add(OutputRowLabel("main.label.pdfMode", 58));
+            leftSettings.Controls.Add(OutputRowControl(pdfRenderModeCombo, 104));
+            leftSettings.Controls.Add(OutputRowLabel("main.label.print", 48));
+            leftSettings.Controls.Add(OutputRowControl(printScalingCombo, 150));
+            leftSettings.Controls.Add(OutputRowTwoLineLabel("main.label.printOffsetX", 56));
+            leftSettings.Controls.Add(OutputRowControl(printOffsetXBox, 48));
+            leftSettings.Controls.Add(OutputRowTwoLineLabel("main.label.printOffsetY", 56));
+            leftSettings.Controls.Add(OutputRowControl(printOffsetYBox, 48));
             row1.Controls.Add(leftSettings, 0, 0);
 
             var rightSort = new TableLayoutPanel
@@ -132,18 +139,20 @@ public sealed partial class MainForm
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 124));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
-            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 74));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 154));
+            rightSort.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
             rightSort.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            printSortFieldCombo.Margin = new Padding(4, 3, 6, 3);
-            printSortCombo.Margin = new Padding(4, 3, 4, 3);
-            printSortValueTypeCombo.Margin = new Padding(6, 3, 4, 3);
+            printSortFieldCombo.Margin = new Padding(3, 3, 4, 3);
+            printSortCombo.Margin = new Padding(3, 3, 3, 3);
+            printSortValueTypeCombo.Margin = new Padding(4, 3, 3, 3);
             rightSort.Controls.Add(printSortFieldCombo, 0, 0);
-            var printSortLabel = BottomLabelText("main.label.printSort", alignRight: true, right: 8);
-            printSortLabel.Margin = new Padding(0, 3, 0, 3);
+            var printSortLabel = BottomLabelText("main.label.printSort", alignRight: true, right: 4);
+            printSortLabel.Margin = new Padding(0);
             printSortLabel.AutoEllipsis = false;
+            ApplyFirstRowTwoLineLabelVerticalOffset(printSortLabel);
+            printSortLabel.TextChanged += (_, _) => ApplyFirstRowTwoLineLabelVerticalOffset(printSortLabel);
             rightSort.Controls.Add(printSortLabel, 1, 0);
             rightSort.Controls.Add(printSortCombo, 2, 0);
             rightSort.Controls.Add(printSortValueTypeCombo, 3, 0);
@@ -175,7 +184,10 @@ public sealed partial class MainForm
             folderLeft.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             outputFolderBox.Dock = DockStyle.Fill;
             outputFolderBox.Margin = new Padding(2, 11, 8, 0);
-            folderLeft.Controls.Add(BottomLabelText("main.label.outputFolder", alignRight: true, right: 8), 0, 0);
+            var outputFolderLabel = BottomLabelText("main.label.outputFolder", alignRight: true, right: 8);
+            ApplyOutputFolderLabelVerticalOffset(outputFolderLabel);
+            outputFolderLabel.TextChanged += (_, _) => ApplyOutputFolderLabelVerticalOffset(outputFolderLabel);
+            folderLeft.Controls.Add(outputFolderLabel, 0, 0);
             folderLeft.Controls.Add(outputFolderBox, 1, 0);
             row2.Controls.Add(folderLeft, 0, 0);
 
@@ -226,12 +238,43 @@ public sealed partial class MainForm
 
         static Label OutputRowLabel(string key, int width)
         {
-            var label = BottomLabelText(key, alignRight: true, right: 8);
+            var label = BottomLabelText(key, alignRight: true, right: 4);
             label.Dock = DockStyle.None;
             label.Width = width;
             label.Height = 28;
-            label.Margin = new Padding(0, 3, 2, 3);
+            label.Margin = new Padding(0, 3, 0, 3);
             return label;
+        }
+
+        static Label OutputRowTwoLineLabel(string key, int width)
+        {
+            var label = OutputRowLabel(key, width);
+            label.Height = 40;
+            label.Margin = new Padding(0);
+            label.AutoEllipsis = false;
+            ApplyFirstRowTwoLineLabelVerticalOffset(label);
+            label.TextChanged += (_, _) => ApplyFirstRowTwoLineLabelVerticalOffset(label);
+            return label;
+        }
+
+        static void ApplyFirstRowTwoLineLabelVerticalOffset(Label label)
+        {
+            if (LocalizationService.CurrentLanguage == AppLanguage.Japanese)
+            {
+                label.Height = 34;
+                label.Margin = new Padding(0, 0, 0, 6);
+                return;
+            }
+
+            label.Height = 40;
+            label.Margin = new Padding(0);
+        }
+
+        static void ApplyOutputFolderLabelVerticalOffset(Label label)
+        {
+            label.Margin = LocalizationService.CurrentLanguage == AppLanguage.Japanese
+                ? new Padding(0, 5, 0, 1)
+                : new Padding(0, 3, 0, 3);
         }
 
         static Control OutputRowControl(Control control, int width)
@@ -239,7 +282,7 @@ public sealed partial class MainForm
             control.Dock = DockStyle.None;
             control.Width = width;
             control.Height = 28;
-            control.Margin = new Padding(2, 3, 10, 3);
+            control.Margin = new Padding(1, 3, 8, 3);
             return control;
         }
 
@@ -256,6 +299,7 @@ public sealed partial class MainForm
     {
         var outputScopeIndex = outputScopeCombo.SelectedIndex < 0 ? 0 : outputScopeCombo.SelectedIndex;
         var printScalingIndex = printScalingCombo.SelectedIndex < 0 ? 0 : printScalingCombo.SelectedIndex;
+        var pdfRenderModeIndex = pdfRenderModeCombo.SelectedIndex < 0 ? 0 : pdfRenderModeCombo.SelectedIndex;
         var printSortIndex = printSortCombo.SelectedIndex < 0 ? 0 : printSortCombo.SelectedIndex;
 
         outputScopeCombo.Items.Clear();
@@ -265,6 +309,10 @@ public sealed partial class MainForm
         printScalingCombo.Items.Clear();
         printScalingCombo.Items.AddRange(PrintScalingItems());
         printScalingCombo.SelectedIndex = Math.Min(printScalingIndex, printScalingCombo.Items.Count - 1);
+
+        pdfRenderModeCombo.Items.Clear();
+        pdfRenderModeCombo.Items.AddRange(PdfRenderModeItems());
+        pdfRenderModeCombo.SelectedIndex = Math.Min(pdfRenderModeIndex, pdfRenderModeCombo.Items.Count - 1);
 
         printSortCombo.Items.Clear();
         printSortCombo.Items.AddRange(PrintSortItems());
@@ -288,6 +336,12 @@ public sealed partial class MainForm
     [
         LocalizationService.T("main.printScaling.actualSize"),
         LocalizationService.T("main.printScaling.fitPrintableArea")
+    ];
+
+    private static object[] PdfRenderModeItems() =>
+    [
+        LocalizationService.T("main.pdfMode.raster"),
+        LocalizationService.T("main.pdfMode.vectorText")
     ];
 
     private static object[] PrintSortItems() =>
@@ -447,6 +501,7 @@ public sealed partial class MainForm
         OutputFolder = ResolveOutputFolder(),
         ConfirmOverwrite = settings.ConfirmOverwrite,
         OutputDpi = SelectedOutputDpi(),
+        PdfRenderMode = SelectedPdfRenderMode(),
         PrintScalingMode = SelectedPrintScalingMode(),
         PrintSortMode = CurrentPrintSortMode(),
         PrintSortFieldId = SelectedPrintSortFieldId(),
@@ -489,6 +544,13 @@ public sealed partial class MainForm
     private int SelectedOutputDpi()
     {
         return int.TryParse(Convert.ToString(outputDpiCombo.SelectedItem), out var dpi) ? dpi : 300;
+    }
+
+    private PdfRenderMode SelectedPdfRenderMode()
+    {
+        return pdfRenderModeCombo.SelectedIndex == 1
+            ? PdfRenderMode.VectorText
+            : PdfRenderMode.Raster;
     }
 
     private PrintScalingMode SelectedPrintScalingMode()

@@ -166,7 +166,8 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         }
 
         var path = NextQueueCsvPath(sourceFolder);
-        var content = string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        var newLine = string.IsNullOrEmpty(firstWorkFile.NewLine) ? Environment.NewLine : firstWorkFile.NewLine;
+        var content = string.Join(newLine, lines) + newLine;
         var changedFiles = ChangedCsvFiles(sourceFiles, workByPath, hasHeaderRow);
 
         WriteChangedCsvFilesAndQueueTransactionally(
@@ -505,7 +506,13 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
     private static string[] EnsureRowWidth(string[] row, int width)
     {
         if (row.Length >= width) return row;
+        var oldLength = row.Length;
         Array.Resize(ref row, width);
+        for (var i = oldLength; i < row.Length; i++)
+        {
+            row[i] = "";
+        }
+
         return row;
     }
 
@@ -518,7 +525,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         {
             var sourceIndex = CsvHeaderResolver.FindIndex(sourceHeader, targetHeader[i]);
             result[i] = sourceIndex >= 0 && sourceIndex < sourceRow.Length
-                ? sourceRow[sourceIndex]
+                ? sourceRow[sourceIndex] ?? string.Empty
                 : string.Empty;
         }
 

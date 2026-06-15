@@ -393,6 +393,24 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void TagFinderCsvService_SaveFlags_FillsExpandedCellsWithEmptyStrings()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Code,Name,tagPrintOrder\r\nA100\r\n", Encoding.UTF8);
+        var file = CsvFile(path, ["Code", "Name", "tagPrintOrder"], ["A100"]);
+
+        new TagFinderCsvService().SaveFlags(
+            [file],
+            [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = false }],
+            "tagPrint",
+            "tagPrintOrder",
+            hasHeaderRow: true);
+
+        Assert.Equal(["A100", "", "", "false"], file.Rows[0]);
+        Assert.All(file.Rows[0], Assert.NotNull);
+    }
+
+    [Fact]
     public void TagFinderCsvService_CreatePrintQueueCsv_PreservesSourcePhysicalBlankRows()
     {
         using var temp = new TempDirectory();

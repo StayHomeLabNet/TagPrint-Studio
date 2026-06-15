@@ -13,8 +13,8 @@ static class Program
         if (!createdNew)
         {
             MessageBox.Show(
-                "TagPrint Studio is already running." + Environment.NewLine + "TagPrint Studio はすでに起動しています。",
-                "TagPrint Studio",
+                LocalizationService.T("program.singleInstance.message"),
+                LocalizationService.T("common.appTitle"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
             return;
@@ -79,24 +79,22 @@ static class Program
             var detail = exceptionObject is Exception exception
                 ? exception.Message
                 : exceptionObject.ToString();
-            var message = "An unexpected error occurred."
-                + Environment.NewLine
-                + "予期しないエラーが発生しました。"
+            var message = LocalizationService.T("program.unexpectedError.message")
                 + Environment.NewLine
                 + Environment.NewLine
-                + (string.IsNullOrWhiteSpace(detail) ? "No additional error detail was available. / 追加のエラー詳細はありません。" : detail)
+                + (string.IsNullOrWhiteSpace(detail) ? LocalizationService.T("program.unexpectedError.noDetail") : detail)
                 + Environment.NewLine
                 + Environment.NewLine
                 + (string.IsNullOrWhiteSpace(logPath)
-                    ? "A crash log could not be written. / クラッシュログを保存できませんでした。"
-                    : $"A crash log was saved to / クラッシュログの保存先:{Environment.NewLine}{logPath}")
+                    ? LocalizationService.T("program.unexpectedError.crashLogWriteFailed")
+                    : LocalizationService.T("program.unexpectedError.crashLogSaved", logPath))
                 + (isTerminating
-                    ? Environment.NewLine + Environment.NewLine + "The application will now close. / アプリケーションを終了します。"
+                    ? Environment.NewLine + Environment.NewLine + LocalizationService.T("program.unexpectedError.terminating")
                     : string.Empty);
 
             MessageBox.Show(
                 message,
-                "Unexpected error / 予期しないエラー - TagPrint Studio",
+                LocalizationService.T("program.unexpectedError.title"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

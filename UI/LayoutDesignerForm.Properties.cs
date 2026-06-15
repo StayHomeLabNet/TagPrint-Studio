@@ -261,7 +261,7 @@ public sealed partial class LayoutDesignerForm
         fieldIdCombo.Text = FieldDisplayText(element.FieldId);
         textBox.Text = element.Text;
         imagePathBox.Text = element.ImagePath;
-        fontFamilyCombo.Text = element.FontFamily;
+        SelectFontFamily(element.FontFamily);
         fontSizeBox.Value = Clamp(element.FontSize, fontSizeBox);
         fontSizeSourceCombo.SelectedItem = FontSizeSourceDisplayText(element.FontSizeSource);
         fontSizeFieldCombo.Text = FieldDisplayText(element.FontSizeFieldId);
@@ -361,7 +361,7 @@ public sealed partial class LayoutDesignerForm
         element.FieldId = SelectedFieldId();
         element.Text = textBox.Text;
         element.ImagePath = imagePathBox.Text;
-        element.FontFamily = string.IsNullOrWhiteSpace(fontFamilyCombo.Text) ? "Yu Gothic UI" : fontFamilyCombo.Text;
+        element.FontFamily = SelectedFontFamily();
         element.FontSize = (double)fontSizeBox.Value;
         element.FontSizeSource = SelectedFontSizeSource();
         element.FontSizeFieldId = SelectedFieldId(fontSizeFieldCombo);
@@ -463,6 +463,38 @@ public sealed partial class LayoutDesignerForm
         {
             barcodeTypeCombo.Enabled = element is not null && isBarcode;
         }
+    }
+
+    private void SelectFontFamily(string fontFamily)
+    {
+        for (var i = 0; i < fontFamilyCombo.Items.Count; i++)
+        {
+            if (fontFamilyCombo.Items[i] is FontFamilyItem item &&
+                string.Equals(item.FontFamily, fontFamily, StringComparison.OrdinalIgnoreCase))
+            {
+                fontFamilyCombo.SelectedIndex = i;
+                return;
+            }
+        }
+
+        fontFamilyCombo.Text = fontFamily;
+    }
+
+    private string SelectedFontFamily()
+    {
+        if (fontFamilyCombo.SelectedItem is FontFamilyItem item)
+        {
+            return item.FontFamily;
+        }
+
+        var text = fontFamilyCombo.Text.Trim();
+        var markerIndex = text.IndexOf("  [", StringComparison.Ordinal);
+        if (markerIndex > 0)
+        {
+            text = text[..markerIndex].Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(text) ? "Yu Gothic UI" : text;
     }
 
     private void UpdateLayoutSettingsEnabled()

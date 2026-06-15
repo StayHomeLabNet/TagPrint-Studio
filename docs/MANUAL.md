@@ -1,10 +1,10 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.0.9**
+Target version: **TagPrint Studio v1.1.0**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV field mapping, layout design, page and single-tag preview, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
+It supports CSV field mapping, layout design, page and single-tag preview, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ---
 
@@ -315,6 +315,10 @@ Multiple CSV files can be loaded at the same time. Output scope controls whether
 
 When multiple CSVs are loaded, keep headers and column counts consistent unless the specific feature allows skipping mismatched files.
 
+CSV files are parsed from readers instead of loading the whole file text first. The app keeps the 100 MB per-file size guard and also applies a maximum data-row limit per CSV file. The data-row limit excludes the header row and blank physical rows.
+
+The maximum data-row limit and the preview-row limit can be changed from **Settings > CSV Load Settings**.
+
 ### 5.6 Queue CSV Files
 
 Tag Finder can create queue CSV files when print quantity is 2 or more.
@@ -384,14 +388,25 @@ The output controls are located at the bottom of the main window.
 
 DPI affects image-based rendering quality and file size. Higher DPI improves output quality but increases file size and processing time.
 
-### 7.3 Print Scaling
+### 7.3 PDF Render Mode
+
+| Mode | Description |
+|---|---|
+| Raster | Existing compatibility-focused image-based PDF output |
+| Vector Text | Uses PDFsharp to place selectable vector text for text, CSV field, and price elements over the compatible rendered page background |
+
+Vector Text PDFs embed the selected layout font directly when it resolves to a compatible TrueType/OpenType font file. If the selected font cannot be embedded directly, the app uses a safe embeddable fallback font and shows an element-level preflight warning before output.
+
+The Layout Designer font list marks fonts with `PDF OK` when they can be embedded directly. Fonts shown as `PDF -> ...` can still be used, but Vector Text PDF output will embed the displayed fallback font instead.
+
+### 7.4 Print Scaling
 
 | Mode | Description |
 |---|---|
 | Actual size | Preserves the real layout dimensions |
 | Fit to printable area | Scales output to fit the printer's printable area |
 
-### 7.4 Print Offsets
+### 7.5 Print Offsets
 
 Use **Offset X** and **Offset Y** to correct printer-specific physical shifts.
 
@@ -400,7 +415,7 @@ Examples:
 - `+1.5mm` moves output to the right.
 - `-0.8mm` moves output upward.
 
-### 7.5 Print Order
+### 7.6 Print Order
 
 | Mode | Description |
 |---|---|
@@ -408,7 +423,7 @@ Examples:
 | Item Code | Sort by Item Code |
 | Selected Field | Sort by the selected sort field |
 
-### 7.6 Output Folder
+### 7.7 Output Folder
 
 | Control | Description |
 |---|---|
@@ -422,11 +437,11 @@ Examples:
 
 The output folder is saved and restored between app launches.
 
-### 7.7 PDF Save Completion
+### 7.8 PDF Save Completion
 
 After PDF save, a completion dialog can optionally open the output folder. The checkbox state is remembered.
 
-### 7.8 Progress, Cancellation, Partial Files, and Restore
+### 7.9 Progress, Cancellation, Partial Files, and Restore
 
 Direct print, PDF export, and PNG export show a progress dialog during long-running output.
 
@@ -571,6 +586,8 @@ Element settings include:
 - Barcode type and text visibility.
 - Image path and aspect ratio.
 - Locked and visible flags.
+
+The font family dropdown also shows Vector Text PDF embedding status. `PDF OK` means the selected font can be embedded directly; `PDF -> ...` means PDF output will use the indicated fallback font while normal preview/raster output continues to use the selected layout font.
 
 #### Row-specific font size
 
@@ -817,6 +834,7 @@ The Settings menu manages app behavior.
 | Reset App Data Location | Return to the default app data location after restart |
 | Confirm Print Targets Before Output | Enables or disables print target confirmation |
 | Large Print Warning | Configure the page threshold for print warnings |
+| CSV Load Settings | Configure the maximum data rows per CSV file and preview rows loaded into Layout Designer/Tag Finder |
 | Import Settings | Import settings ZIP |
 | Backup Settings | Create settings ZIP |
 | Open Settings File Location | Open app settings location |
@@ -860,7 +878,16 @@ Backup File Cleanup manages timestamped CSV backups such as `products.csv.bak-20
 
 When the startup folder is configured or changed, the app can also update the Backup File Cleanup target folder after confirmation.
 
-### 14.4 App Data Storage Location
+### 14.4 CSV Load Settings
+
+CSV Load Settings controls CSV reading and preview limits:
+
+- Maximum data rows per CSV file.
+- Preview rows loaded into Layout Designer and Tag Finder preview flows.
+
+The maximum data-row limit does not count the header row or blank physical rows.
+
+### 14.5 App Data Storage Location
 
 The app data root can be changed from the Settings menu. This location is used for app-managed folders such as:
 
@@ -996,7 +1023,7 @@ Before release:
 
 1. Start the app.
 2. Confirm Japanese and English UI.
-3. Confirm the About dialog shows v1.0.9.
+3. Confirm the About dialog shows v1.1.0.
 4. Load sample CSV and folder CSV.
 5. Confirm UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS CSV behavior where possible.
 6. Confirm delimiter detection for comma, tab, and semicolon files.

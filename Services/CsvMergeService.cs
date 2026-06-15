@@ -80,7 +80,7 @@ public sealed class CsvMergeService : ICsvMergeService
                 HeaderMatches = isParent || HeadersMatch(parent.HeaderRow, file.HeaderRow),
                 Status = MergeStatus(file, isParent, parent),
                 Note = MergeNote(file, isParent, parent),
-                Snapshot = SnapshotFor(file.FilePath)
+                Snapshot = CsvFileUtility.CreateSnapshot(file.FilePath)
             };
 
             if (!isParent && CanUseForMerge(file) && candidate.HeaderMatches)
@@ -201,8 +201,17 @@ public sealed class CsvMergeService : ICsvMergeService
         var deletedBakFileCount = 0;
         if (preview.DeleteBakFileAfterMerge && File.Exists(backupPath))
         {
-            deleteFile(backupPath);
-            deletedBakFileCount = 1;
+            try
+            {
+                deleteFile(backupPath);
+                deletedBakFileCount = File.Exists(backupPath) ? 0 : 1;
+            }
+            catch
+            {
+                // The merge itself has already succeeded. Leaving the backup file in
+                // place is safer than reporting the completed merge as failed.
+                deletedBakFileCount = 0;
+            }
         }
 
         return new CsvMergeApplyResult
@@ -229,36 +238,11 @@ public sealed class CsvMergeService : ICsvMergeService
                 throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.previewExpired", Path.GetFileName(targetPath)));
             }
 
-            if (!SnapshotMatches(snapshot, targetPath))
+            if (!CsvFileUtility.SnapshotMatches(snapshot, targetPath))
             {
                 throw new InvalidOperationException(LocalizationService.T("csvMerge.issue.fileChangedAfterPreview", Path.GetFileName(targetPath)));
             }
         }
-    }
-
-    private static bool SnapshotMatches(CsvFileSnapshot snapshot, string path)
-    {
-        var fileInfo = new FileInfo(path);
-        if (!fileInfo.Exists)
-        {
-            return !snapshot.Exists;
-        }
-
-        return snapshot.Exists
-            && snapshot.Length == fileInfo.Length
-            && snapshot.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc;
-    }
-
-    private static CsvFileSnapshot SnapshotFor(string path)
-    {
-        var fileInfo = new FileInfo(path);
-        return new CsvFileSnapshot
-        {
-            FilePath = path,
-            Exists = fileInfo.Exists,
-            Length = fileInfo.Exists ? fileInfo.Length : 0,
-            LastWriteTimeUtc = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTime.MinValue
-        };
     }
 
     private static void DeleteFileToRecycleBin(string path)

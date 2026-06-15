@@ -143,6 +143,42 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void CsvMerge_Apply_DoesNotFailWhenBakDeleteFailsAfterSuccessfulMerge()
+    {
+        using var temp = new TempDirectory();
+        var parentPath = temp.WriteText("parent.csv", "Code,Price\r\nA100,120\r\n", Encoding.UTF8);
+        _ = temp.WriteText("child1.csv", "Code,Price\r\nB200,80\r\n", Encoding.UTF8);
+        var preset = Preset(Field("code", "Code", 0), Field("price", "Price", 1));
+        var service = new CsvMergeService(
+            new CsvLoaderService(),
+            path =>
+            {
+                if (Path.GetFileName(path).StartsWith("parent.csv.bak-", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new IOException("Simulated backup delete failure.");
+                }
+
+                File.Delete(path);
+            });
+
+        var preview = service.Preview(new CsvMergeOptions
+        {
+            FolderPath = temp.DirectoryPath,
+            ParentCsvPath = parentPath,
+            HasHeaderRow = true,
+            DeleteBakFileAfterMerge = true
+        }, preset);
+
+        var result = service.Apply(preview, preset);
+
+        Assert.Equal(0, result.DeletedBakFileCount);
+        Assert.True(File.Exists(result.BackupPath));
+        var merged = File.ReadAllText(parentPath, Encoding.UTF8);
+        Assert.Contains("A100,120", merged);
+        Assert.Contains("B200,80", merged);
+    }
+
+    [Fact]
     public void CsvMerge_Apply_CreatesSeparateBackupsAcrossRuns()
     {
         using var temp = new TempDirectory();

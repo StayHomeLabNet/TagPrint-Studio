@@ -6,7 +6,7 @@ namespace TagPrintStudio.Services;
 
 public interface ICsvLoaderService
 {
-    CsvImportResult LoadFiles(IEnumerable<string> filePaths, PresetFile preset, bool hasHeaderRow);
+    CsvImportResult LoadFiles(IEnumerable<string> filePaths, PresetFile preset, bool hasHeaderRow, CsvLoadOptions? options = null);
 }
 
 public sealed class CsvLoaderService : ICsvLoaderService
@@ -18,8 +18,9 @@ public sealed class CsvLoaderService : ICsvLoaderService
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
-    public CsvImportResult LoadFiles(IEnumerable<string> filePaths, PresetFile preset, bool hasHeaderRow)
+    public CsvImportResult LoadFiles(IEnumerable<string> filePaths, PresetFile preset, bool hasHeaderRow, CsvLoadOptions? options = null)
     {
+        options ??= new CsvLoadOptions();
         var result = new CsvImportResult();
         int? expectedColumns = null;
         foreach (var filePath in filePaths.Where(p => string.Equals(Path.GetExtension(p), ".csv", StringComparison.OrdinalIgnoreCase)))
@@ -28,19 +29,16 @@ public sealed class CsvLoaderService : ICsvLoaderService
             {
                 ValidateFileSize(filePath);
                 var detection = DetectEncoding(filePath);
-                var content = File.ReadAllText(filePath, detection.Encoding);
-                var delimiter = DetectDelimiter(content);
-                var newLine = DetectNewLine(content);
-                var parsed = ParseCsvContent(content, delimiter)
-                    .Select(NormalizeBlankRecord)
-                    .ToList();
+                var delimiter = DetectDelimiter(filePath, detection.Encoding);
+                var newLine = DetectNewLine(filePath, detection.Encoding);
+                var parsed = ReadCsvRecords(filePath, detection.Encoding, delimiter, options.MaxDataRowsPerFile, hasHeaderRow);
                 var item = new CsvFileItem
                 {
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
                     Delimiter = delimiter,
                     NewLine = newLine,
-                    Snapshot = SnapshotFor(filePath),
+                    Snapshot = CsvFileUtility.CreateSnapshot(filePath),
                     EncodingName = detection.Kind switch
                     {
                         EncodingKind.Utf8Bom => "UTF-8 BOM",
@@ -111,7 +109,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
                     FileName = Path.GetFileName(filePath),
                     EncodingName = "",
                     Status = CsvFileStatus.LoadFailed,
-                    Snapshot = File.Exists(filePath) ? SnapshotFor(filePath) : new CsvFileSnapshot { FilePath = filePath, Exists = false },
+                    Snapshot = CsvFileUtility.CreateSnapshot(filePath),
                     Note = ex.Message
                 });
             }
@@ -136,55 +134,54 @@ public sealed class CsvLoaderService : ICsvLoaderService
         return $"{mib:0.#} MB";
     }
 
-    private static CsvFileSnapshot SnapshotFor(string path)
+    private static string DetectNewLine(string path, Encoding encoding)
     {
-        var fileInfo = new FileInfo(path);
-        return new CsvFileSnapshot
+        using var reader = new StreamReader(path, encoding, detectEncodingFromByteOrderMarks: true);
+        var previousWasCr = false;
+        while (reader.Read() is var value && value >= 0)
         {
-            FilePath = path,
-            Exists = fileInfo.Exists,
-            Length = fileInfo.Exists ? fileInfo.Length : 0,
-            LastWriteTimeUtc = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTime.MinValue
-        };
-    }
-
-    private static string DetectNewLine(string content)
-    {
-        for (var i = 0; i < content.Length; i++)
-        {
-            if (content[i] == '\r')
+            var c = (char)value;
+            if (previousWasCr)
             {
-                return i + 1 < content.Length && content[i + 1] == '\n' ? "\r\n" : "\r";
+                return c == '\n' ? "\r\n" : "\r";
             }
 
-            if (content[i] == '\n')
+            if (c == '\r')
+            {
+                previousWasCr = true;
+            }
+            else if (c == '\n')
             {
                 return "\n";
             }
         }
 
-        return Environment.NewLine;
+        return previousWasCr ? "\r" : Environment.NewLine;
     }
 
     private static EncodingDetectionResult DetectEncoding(string path)
     {
-        var bytes = File.ReadAllBytes(path);
-        if (HasUtf8Bom(bytes))
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var prefix = new byte[Math.Min(3, stream.Length)];
+        _ = stream.Read(prefix, 0, prefix.Length);
+        stream.Position = 0;
+
+        if (HasUtf8Bom(prefix))
         {
             return new EncodingDetectionResult(new UTF8Encoding(true, true), EncodingKind.Utf8Bom);
         }
 
-        if (HasUtf16LeBom(bytes))
+        if (HasUtf16LeBom(prefix))
         {
             return new EncodingDetectionResult(Encoding.Unicode, EncodingKind.Utf16LeBom);
         }
 
-        if (HasUtf16BeBom(bytes))
+        if (HasUtf16BeBom(prefix))
         {
             return new EncodingDetectionResult(Encoding.BigEndianUnicode, EncodingKind.Utf16BeBom);
         }
 
-        if (IsValidUtf8(bytes))
+        if (IsValidUtf8(stream))
         {
             return new EncodingDetectionResult(new UTF8Encoding(false, true), EncodingKind.Utf8);
         }
@@ -208,11 +205,16 @@ public sealed class CsvLoaderService : ICsvLoaderService
         bytes[0] == 0xFE &&
         bytes[1] == 0xFF;
 
-    private static bool IsValidUtf8(byte[] bytes)
+    private static bool IsValidUtf8(Stream stream)
     {
         try
         {
-            _ = new UTF8Encoding(false, true).GetString(bytes);
+            stream.Position = 0;
+            using var reader = new StreamReader(stream, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: false, bufferSize: 8192, leaveOpen: true);
+            var buffer = new char[8192];
+            while (reader.Read(buffer, 0, buffer.Length) > 0)
+            {
+            }
             return true;
         }
         catch (DecoderFallbackException)
@@ -221,9 +223,10 @@ public sealed class CsvLoaderService : ICsvLoaderService
         }
     }
 
-    private static string DetectDelimiter(string content)
+    private static string DetectDelimiter(string path, Encoding encoding)
     {
-        var records = FirstRecordTexts(content, maxRecords: 20)
+        using var reader = new StreamReader(path, encoding, detectEncodingFromByteOrderMarks: true);
+        var records = FirstRecordTexts(reader, maxRecords: 20)
             .Where(record => record.Any(c => !char.IsWhiteSpace(c)))
             .ToList();
 
@@ -243,22 +246,21 @@ public sealed class CsvLoaderService : ICsvLoaderService
             .First().Delimiter;
     }
 
-    private static IEnumerable<string> FirstRecordTexts(string content, int maxRecords)
+    private static IEnumerable<string> FirstRecordTexts(TextReader reader, int maxRecords)
     {
         var current = new StringBuilder();
         var inQuotes = false;
         var yielded = 0;
 
-        for (var i = 0; i < content.Length; i++)
+        while (reader.Read() is var value && value >= 0)
         {
-            var c = content[i];
+            var c = (char)value;
             if (c == '"')
             {
                 current.Append(c);
-                if (inQuotes && i + 1 < content.Length && content[i + 1] == '"')
+                if (inQuotes && reader.Peek() == '"')
                 {
-                    current.Append(content[i + 1]);
-                    i++;
+                    current.Append((char)reader.Read());
                 }
                 else
                 {
@@ -275,9 +277,9 @@ public sealed class CsvLoaderService : ICsvLoaderService
                 }
 
                 current.Clear();
-                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                if (c == '\r' && reader.Peek() == '\n')
                 {
-                    i++;
+                    _ = reader.Read();
                 }
             }
             else
@@ -286,7 +288,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
             }
         }
 
-        if (current.Length > 0 || content.Length == 0 || content.EndsWith('\r') || content.EndsWith('\n'))
+        if (current.Length > 0 || yielded == 0)
         {
             yield return current.ToString();
         }
@@ -362,9 +364,33 @@ public sealed class CsvLoaderService : ICsvLoaderService
         return row.Length == 1 && row[0].Length == 0 ? [] : row;
     }
 
-    private static List<string[]> ParseCsvContent(string content, string delimiter)
+    private static List<string[]> ReadCsvRecords(string path, Encoding encoding, string delimiter, int maxDataRows, bool hasHeaderRow)
     {
         var records = new List<string[]>();
+        var recordIndex = 0;
+        var dataRowCount = 0;
+        using var reader = new StreamReader(path, encoding, detectEncodingFromByteOrderMarks: true);
+        foreach (var record in ParseCsvContent(reader, delimiter).Select(NormalizeBlankRecord))
+        {
+            records.Add(record);
+            var isHeaderRow = hasHeaderRow && recordIndex == 0;
+            if (!isHeaderRow && !CsvFileUtility.IsBlankRow(record))
+            {
+                dataRowCount++;
+                if (maxDataRows > 0 && dataRowCount > maxDataRows)
+                {
+                    throw new InvalidOperationException(LocalizationService.T("csvLoader.issue.tooManyRows", maxDataRows));
+                }
+            }
+
+            recordIndex++;
+        }
+
+        return records;
+    }
+
+    private static IEnumerable<string[]> ParseCsvContent(TextReader reader, string delimiter)
+    {
         var row = new List<string>();
         var field = new StringBuilder();
         var delimiterChar = delimiter.Length > 0 ? delimiter[0] : ',';
@@ -374,16 +400,17 @@ public sealed class CsvLoaderService : ICsvLoaderService
         var lineNumber = 1;
         var recordStartLine = 1;
 
-        void FinishRecord()
+        string[] FinishRecord()
         {
+            string[] record;
             if (!recordHadCharacters && row.Count == 0 && field.Length == 0)
             {
-                records.Add([]);
+                record = [];
             }
             else
             {
                 row.Add(field.ToString());
-                records.Add(row.ToArray());
+                record = row.ToArray();
             }
 
             row = [];
@@ -391,21 +418,22 @@ public sealed class CsvLoaderService : ICsvLoaderService
             atFieldStart = true;
             recordHadCharacters = false;
             recordStartLine = lineNumber;
+            return record;
         }
 
-        for (var i = 0; i < content.Length; i++)
+        while (reader.Read() is var value && value >= 0)
         {
-            var c = content[i];
+            var c = (char)value;
 
             if (c == '"')
             {
                 recordHadCharacters = true;
                 if (inQuotes)
                 {
-                    if (i + 1 < content.Length && content[i + 1] == '"')
+                    if (reader.Peek() == '"')
                     {
                         field.Append('"');
-                        i++;
+                        _ = reader.Read();
                     }
                     else
                     {
@@ -436,11 +464,11 @@ public sealed class CsvLoaderService : ICsvLoaderService
 
             if ((c == '\r' || c == '\n') && !inQuotes)
             {
-                FinishRecord();
+                yield return FinishRecord();
 
-                if (c == '\r' && i + 1 < content.Length && content[i + 1] == '\n')
+                if (c == '\r' && reader.Peek() == '\n')
                 {
-                    i++;
+                    _ = reader.Read();
                 }
 
                 lineNumber++;
@@ -466,10 +494,8 @@ public sealed class CsvLoaderService : ICsvLoaderService
         if (recordHadCharacters || row.Count > 0 || field.Length > 0)
         {
             row.Add(field.ToString());
-            records.Add(row.ToArray());
+            yield return row.ToArray();
         }
-
-        return records;
     }
 
     private sealed record DelimiterScore(string Delimiter, int DelimitedRecordCount, int ConsistentDelimitedRecordCount, int TotalDelimiterCount, int ModeDelimiterCount);

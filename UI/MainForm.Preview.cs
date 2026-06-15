@@ -403,7 +403,14 @@ public sealed partial class MainForm : Form
         if (csvRows.All(c => c.Status != CsvFileStatus.Ok)) { MessageBox.Show(LocalizationService.T("main.message.noValidCsv"), LocalizationService.T("common.appTitle")); return false; }
         if (requireOutputFolder && string.IsNullOrWhiteSpace(outputFolderBox.Text)) { MessageBox.Show(LocalizationService.T("main.message.outputFolderRequired"), LocalizationService.T("common.appTitle")); return false; }
         currentPreset.Fields = fieldRows.ToList();
-        var result = preflightCheckService.Check(currentLayout, currentPreset, csvRows.ToList(), headerCheck.Checked, CurrentPrintSortMode(), CurrentPrintTargetOrderColumnName());
+        var result = preflightCheckService.Check(
+            currentLayout,
+            currentPreset,
+            csvRows.ToList(),
+            headerCheck.Checked,
+            CurrentPrintSortMode(),
+            CurrentPrintTargetOrderColumnName(),
+            SelectedPdfRenderMode());
         if (result.HasIssues)
         {
             using var dialog = new DetailsDialog(

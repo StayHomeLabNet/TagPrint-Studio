@@ -42,7 +42,7 @@ public sealed class TagFinderWorkflowService : ITagFinderWorkflowService
             if (!CsvFileUtility.IsPrintQueueCsv(file.FilePath)) continue;
 
             var flagIndex = CsvHeaderResolver.FindIndex(file, flagColumnName);
-            var hasPrintableRow = flagIndex >= 0 && file.Rows.Any(row => IsTrue(ValueAt(row, flagIndex)));
+            var hasPrintableRow = flagIndex >= 0 && file.Rows.Any(row => row is not null && IsTrue(ValueAt(row, flagIndex)));
             if (!hasPrintableRow)
             {
                 yield return file.FilePath;
@@ -51,7 +51,7 @@ public sealed class TagFinderWorkflowService : ITagFinderWorkflowService
     }
 
 
-    private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] : "";
+    private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] ?? "" : "";
 
     private static bool IsTrue(string value) =>
         string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)

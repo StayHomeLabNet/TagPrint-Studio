@@ -8,7 +8,7 @@ namespace TagPrintStudio.Services;
 
 public interface IPreflightCheckService
 {
-    PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "");
+    PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "", PdfRenderMode pdfRenderMode = PdfRenderMode.Raster);
 }
 
 public sealed class PreflightCheckService : IPreflightCheckService
@@ -27,7 +27,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
     private const double RecommendedQrCodeSizeMm = 20.0;
     private const double RecommendedQrCodeSizeWithTextMm = 24.0;
 
-    public PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "")
+    public PreflightCheckResult Check(LayoutFile layout, PresetFile preset, List<CsvFileItem> csvFiles, bool hasHeaderRow = false, PrintSortMode printSortMode = PrintSortMode.LoadOrder, string printTargetOrderColumnName = "", PdfRenderMode pdfRenderMode = PdfRenderMode.Raster)
     {
         var errors = new List<string>();
         var warnings = new List<string>();
@@ -37,6 +37,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
         errors.AddRange(CheckVisibleElementGeometry(layout));
         errors.AddRange(CheckImages(layout));
         warnings.AddRange(CheckFontWarnings(layout));
+        warnings.AddRange(CheckVectorPdfFontWarnings(layout, pdfRenderMode));
         warnings.AddRange(CheckBarcodeWarnings(layout));
         errors.AddRange(CheckBarcodeErrors(layout, preset));
 
@@ -163,7 +164,40 @@ public sealed class PreflightCheckService : IPreflightCheckService
     private static bool UsesFont(LayoutElement element)
     {
         return element.ElementType is LayoutElementType.FieldText or LayoutElementType.StaticText
+            || element.ElementType == LayoutElementType.PriceValue
             || (element.ElementType == LayoutElementType.Barcode && element.BarcodeShowText);
+    }
+
+    private static IEnumerable<string> CheckVectorPdfFontWarnings(LayoutFile layout, PdfRenderMode pdfRenderMode)
+    {
+        if (pdfRenderMode != PdfRenderMode.VectorText)
+        {
+            yield break;
+        }
+
+        var checkedFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var element in VisibleElements(layout).Where(element =>
+                     element.ElementType is LayoutElementType.FieldText or LayoutElementType.StaticText or LayoutElementType.PriceValue))
+        {
+            var fontFamily = (element.FontFamily ?? string.Empty).Trim();
+            var label = ElementLabel(element);
+            var key = $"{label}\0{fontFamily}\0{element.Bold}";
+            if (string.IsNullOrWhiteSpace(fontFamily) || !checkedFonts.Add(key))
+            {
+                continue;
+            }
+
+            var resolution = WindowsPdfFontResolver.DescribeFamilyResolution(fontFamily, element.Bold);
+            if (!resolution.IsDirectlyEmbeddable)
+            {
+                yield return LocalizationService.T(
+                    "preflight.issue.vectorPdfFontFallback",
+                    label,
+                    fontFamily,
+                    resolution.Reason,
+                    resolution.EmbeddedFamily);
+            }
+        }
     }
 
     private static IEnumerable<string> CheckImages(LayoutFile layout)

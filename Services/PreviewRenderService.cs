@@ -8,29 +8,36 @@ namespace TagPrintStudio.Services;
 
 public interface IPreviewRenderService
 {
-    Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f);
-    Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f);
+    Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f, RenderLayerOptions? layerOptions = null);
+    Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f, RenderLayerOptions? layerOptions = null);
     (int Columns, int Rows) GetGrid(LayoutFile layout);
     int GetRowsPerPage(LayoutFile layout);
 }
 
+public sealed record RenderLayerOptions(
+    bool DrawRasterText = true,
+    bool DrawRasterPrice = true,
+    bool DrawRasterBarcodeText = true);
+
 public sealed partial class PreviewRenderService(IUnitConversionService units) : IPreviewRenderService
 {
-    public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f)
+    public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f, RenderLayerOptions? layerOptions = null)
     {
+        layerOptions ??= new RenderLayerOptions();
         var width = Math.Max(1, (int)Math.Ceiling(layout.Tag.Width * scale));
         var height = Math.Max(1, (int)Math.Ceiling(layout.Tag.Height * scale));
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         using var graphics = Graphics.FromImage(bitmap);
         Prepare(graphics);
         graphics.Clear(Color.White);
-        DrawTag(graphics, layout, rowData, new RectangleF(0, 0, width, height), scale);
+        DrawTag(graphics, layout, rowData, new RectangleF(0, 0, width, height), scale, layerOptions);
         graphics.DrawRectangle(Pens.Gray, 0, 0, width - 1, height - 1);
         return bitmap;
     }
 
-    public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f)
+    public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f, RenderLayerOptions? layerOptions = null)
     {
+        layerOptions ??= new RenderLayerOptions();
         var paper = units.GetPaperSize(layout.Paper);
         var width = Math.Max(1, (int)Math.Ceiling(paper.Width * scale));
         var height = Math.Max(1, (int)Math.Ceiling(paper.Height * scale));
@@ -48,7 +55,7 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
                 var left = (float)((layout.Margin.Left + x * (layout.Tag.Width + layout.Spacing.Horizontal)) * scale);
                 var top = (float)((layout.Margin.Top + y * (layout.Tag.Height + layout.Spacing.Vertical)) * scale);
                 var rect = new RectangleF(left, top, (float)(layout.Tag.Width * scale), (float)(layout.Tag.Height * scale));
-                DrawTag(graphics, layout, rows[index], rect, scale);
+                DrawTag(graphics, layout, rows[index], rect, scale, layerOptions);
                 graphics.DrawRectangle(Pens.LightGray, rect.X, rect.Y, rect.Width, rect.Height);
                 index++;
             }
@@ -88,7 +95,7 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
     }
 
-    private static void DrawTag(Graphics graphics, LayoutFile layout, Dictionary<string, string> rowData, RectangleF tagRect, float scale)
+    private static void DrawTag(Graphics graphics, LayoutFile layout, Dictionary<string, string> rowData, RectangleF tagRect, float scale, RenderLayerOptions layerOptions)
     {
         foreach (var element in layout.Elements.Where(e => e.Visible).OrderBy(e => e.ZIndex))
         {
@@ -106,25 +113,35 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
             }
             else if (element.ElementType == LayoutElementType.Barcode)
             {
-                DrawBarcode(graphics, element, rowData, rect, scale);
+                DrawBarcode(graphics, element, rowData, rect, scale, layerOptions);
             }
             else if (element.ElementType == LayoutElementType.PriceValue)
             {
-                DrawPriceValue(graphics, element, rowData, rect, scale, ResolveFontSize(element, rowData));
+                if (layerOptions.DrawRasterPrice)
+                {
+                    DrawPriceValue(graphics, element, rowData, rect, scale, ResolveFontSize(element, rowData));
+                }
             }
             else
             {
                 var text = element.ElementType == LayoutElementType.FieldText
                     ? rowData.GetValueOrDefault(element.FieldId, "")
                     : element.Text;
+                text ??= "";
                 var fontSize = ResolveFontSize(element, rowData);
                 if (element.DecimalDisplayStyle != DecimalDisplayStyle.Normal || element.DecimalPlaces >= 0)
                 {
-                    DrawPriceValue(graphics, element, text, rect, scale, fontSize);
+                    if (layerOptions.DrawRasterPrice)
+                    {
+                        DrawPriceValue(graphics, element, text, rect, scale, fontSize);
+                    }
                 }
                 else
                 {
-                    DrawText(graphics, element, text, rect, scale, fontSize);
+                    if (layerOptions.DrawRasterText)
+                    {
+                        DrawText(graphics, element, text, rect, scale, fontSize);
+                    }
                 }
             }
 
@@ -144,8 +161,9 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
             return Math.Max(1, element.FontSize);
         }
 
-        if (!double.TryParse(rawValue.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
-            !double.TryParse(rawValue.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out value))
+        var text = rawValue.Trim();
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) &&
+            !double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
         {
             return Math.Max(1, element.FontSize);
         }

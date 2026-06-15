@@ -102,6 +102,34 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void DuplicateCleanup_Apply_RejectsFilesChangedAfterAnalysis()
+    {
+        using var temp = new TempDirectory();
+        var file1Path = temp.WriteText("first.csv", "Code,Price\r\nA100,120\r\nB200,50\r\n", Encoding.UTF8);
+        var file2Path = temp.WriteText("second.csv", "Code,Price\r\nA100,180\r\nC300,90\r\n", Encoding.UTF8);
+        var preset = Preset(
+            Field("code", "Code", 0),
+            Field("price", "Price", 1));
+        var file1 = new CsvLoaderService().LoadFiles([file1Path], preset, hasHeaderRow: true).Files.Single();
+        var file2 = new CsvLoaderService().LoadFiles([file2Path], preset, hasHeaderRow: true).Files.Single();
+        var files = new List<CsvFileItem> { file1, file2 };
+        var service = new DuplicateCleanupService();
+        var result = service.Analyze(preset, files, new DuplicateCleanupOptions
+        {
+            KeyFieldId = "code",
+            CompareFieldId = "price",
+            ValueType = DuplicateValueType.Number,
+            Rule = DuplicateResolutionRule.KeepLargest
+        });
+        File.AppendAllText(file1Path, "D400,10\r\n", Encoding.UTF8);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => service.Apply(files, result, hasHeaderRow: true));
+
+        Assert.Contains(Path.GetFileName(file1Path), ex.Message);
+        Assert.Contains("A100,120", File.ReadAllText(file1Path, Encoding.UTF8));
+    }
+
+    [Fact]
     public void DuplicateCleanup_Analyze_UsesFirstRowWhenValuesTie()
     {
         var service = new DuplicateCleanupService();

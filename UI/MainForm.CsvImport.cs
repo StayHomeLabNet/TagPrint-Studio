@@ -339,13 +339,14 @@ public sealed partial class MainForm
 
         RememberRecentCsvPaths(csvPaths);
         currentPreset.Fields = fieldRows.ToList();
-        var result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked);
+        var loadOptions = CurrentCsvLoadOptions();
+        var result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked, loadOptions);
         csvRows.Clear();
         foreach (var file in result.Files) csvRows.Add(file);
         if (ApplySavedCsvFieldMapping())
         {
             currentPreset.Fields = fieldRows.ToList();
-            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked);
+            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked, loadOptions);
             csvRows.Clear();
             foreach (var file in result.Files) csvRows.Add(file);
         }
@@ -353,7 +354,7 @@ public sealed partial class MainForm
         if (SyncFieldsToCsvHeaders())
         {
             currentPreset.Fields = fieldRows.ToList();
-            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked);
+            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked, loadOptions);
             csvRows.Clear();
             foreach (var file in result.Files) csvRows.Add(file);
             SaveCurrentCsvHeaderMapping();
@@ -363,7 +364,7 @@ public sealed partial class MainForm
         if (AutoMapCsvFields())
         {
             currentPreset.Fields = fieldRows.ToList();
-            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked);
+            result = csvLoader.LoadFiles(csvPaths, currentPreset, headerCheck.Checked, loadOptions);
             csvRows.Clear();
             foreach (var file in result.Files) csvRows.Add(file);
             SaveCurrentCsvHeaderMapping();
@@ -375,6 +376,11 @@ public sealed partial class MainForm
         RedrawPreview();
         ShowCsvImportDetails(result);
     }
+
+    private CsvLoadOptions CurrentCsvLoadOptions() => new()
+    {
+        MaxDataRowsPerFile = Math.Max(1, settings.CsvMaxDataRowsPerFile)
+    };
 
     private static IEnumerable<string> NormalizeCsvPaths(IEnumerable<string> paths)
     {

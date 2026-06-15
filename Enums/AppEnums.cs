@@ -14,6 +14,7 @@ public enum DecimalDisplayStyle
     SmallFraction = SmallFractionBottom
 }
 public enum OutputFormatType { Pdf, Png, Print }
+public enum PdfRenderMode { Raster, VectorText }
 public enum OutputScopeType { SinglePdfAllCsv, SeparatePdfPerCsv, IndividualPngPerRow }
 public enum PrintScalingMode { ActualSize, FitPrintableArea }
 public enum PrintSortMode { LoadOrder, ItemCode, SelectedField, PrintTargetOrder }

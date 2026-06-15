@@ -11,6 +11,7 @@ public class OutputOptions
     public string OutputFolder { get; set; } = "";
     public bool ConfirmOverwrite { get; set; } = true;
     public int OutputDpi { get; set; } = 300;
+    public PdfRenderMode PdfRenderMode { get; set; } = PdfRenderMode.Raster;
     public PrintScalingMode PrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
     public PrintSortMode PrintSortMode { get; set; } = PrintSortMode.LoadOrder;
     public string PrintSortFieldId { get; set; } = "";
@@ -30,6 +31,7 @@ public class OutputSelectionState
     public string OutputFolder { get; set; } = "";
     public bool ConfirmOverwrite { get; set; } = true;
     public int OutputDpi { get; set; } = 300;
+    public PdfRenderMode PdfRenderMode { get; set; } = PdfRenderMode.Raster;
     public PrintScalingMode PrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
     public PrintSortMode PrintSortMode { get; set; } = PrintSortMode.LoadOrder;
     public string PrintSortFieldId { get; set; } = "";

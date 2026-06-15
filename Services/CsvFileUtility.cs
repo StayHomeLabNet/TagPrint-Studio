@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 using TagPrintStudio.Models;
 
 namespace TagPrintStudio.Services;
@@ -138,6 +139,46 @@ public static class CsvFileUtility
 
         var content = BuildCsvContent(file, hasHeaderRow);
         WriteAllTextAtomic(file.FilePath, content, EncodingForCsv(file.EncodingName));
+        file.Snapshot = CreateSnapshot(file.FilePath);
+    }
+
+    public static CsvFileSnapshot CreateSnapshot(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        return new CsvFileSnapshot
+        {
+            FilePath = path,
+            Exists = fileInfo.Exists,
+            Length = fileInfo.Exists ? fileInfo.Length : 0,
+            LastWriteTimeUtc = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTime.MinValue,
+            Sha256 = fileInfo.Exists ? ComputeSha256(path) : ""
+        };
+    }
+
+    public static bool SnapshotMatches(CsvFileSnapshot snapshot, string path)
+    {
+        var current = CreateSnapshot(path);
+        if (!current.Exists)
+        {
+            return !snapshot.Exists;
+        }
+
+        if (!snapshot.Exists ||
+            snapshot.Length != current.Length ||
+            snapshot.LastWriteTimeUtc != current.LastWriteTimeUtc)
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(snapshot.Sha256) ||
+            string.Equals(snapshot.Sha256, current.Sha256, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ComputeSha256(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var hash = SHA256.HashData(stream);
+        return Convert.ToHexString(hash);
     }
 
     public static string NormalizeDelimiter(string? delimiter) => delimiter switch

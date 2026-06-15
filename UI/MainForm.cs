@@ -82,6 +82,7 @@ public sealed partial class MainForm : Form
     private ComboBox recentOutputCombo = null!;
     private ComboBox outputScopeCombo = null!;
     private ComboBox outputDpiCombo = null!;
+    private ComboBox pdfRenderModeCombo = null!;
     private ComboBox printScalingCombo = null!;
     private ComboBox printSortCombo = null!;
     private ComboBox printSortFieldCombo = null!;
@@ -100,6 +101,7 @@ public sealed partial class MainForm : Form
     private ToolStripMenuItem backupCleanupStartupAutoMenuItem = null!;
     private ToolStripMenuItem confirmPrintTargetsMenuItem = null!;
     private ToolStripMenuItem largePrintWarningSettingsMenuItem = null!;
+    private ToolStripMenuItem csvLoadSettingsMenuItem = null!;
     private ToolStripMenuItem appDataLocationMenuItem = null!;
     private ToolStripMenuItem openAppDataLocationMenuItem = null!;
     private ToolStripMenuItem resetAppDataLocationMenuItem = null!;

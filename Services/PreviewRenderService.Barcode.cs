@@ -5,12 +5,12 @@ namespace TagPrintStudio.Services;
 
 public sealed partial class PreviewRenderService
 {
-    private static void DrawBarcode(Graphics graphics, LayoutElement element, Dictionary<string, string> rowData, RectangleF rect, float scale)
+    private static void DrawBarcode(Graphics graphics, LayoutElement element, Dictionary<string, string> rowData, RectangleF rect, float scale, RenderLayerOptions layerOptions)
     {
         var rawText = string.IsNullOrWhiteSpace(element.FieldId)
             ? element.Text
             : rowData.GetValueOrDefault(element.FieldId, "");
-        var value = rawText.Trim();
+        var value = (rawText ?? "").Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
             DrawBarcodeWarning(graphics, element, rect, scale, LocalizationService.T("preview.barcode.empty"));
@@ -78,7 +78,7 @@ public sealed partial class PreviewRenderService
         }
         graphics.SmoothingMode = previousSmoothing;
 
-        if (!element.BarcodeShowText || textHeight <= 0) return;
+        if (!element.BarcodeShowText || !layerOptions.DrawRasterBarcodeText || textHeight <= 0) return;
 
         var textRect = new RectangleF(rect.Left, barcodeRect.Bottom, rect.Width, textHeight);
         using var font = new Font(element.FontFamily, Math.Max(1f, (float)(element.FontSize * scale * 0.72)), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);

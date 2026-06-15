@@ -1,10 +1,25 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.0.9** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.1.0** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV-based field mapping, layout editing, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
+It supports CSV-based field mapping, layout editing, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## What's New in v1.1.0
+
+- Added selectable PDF rendering.
+  - **Raster** keeps the existing compatibility-focused image-based PDF output.
+  - **Vector Text** uses PDFsharp to keep the rendered page background compatible while adding selectable vector text for text, field, and price elements.
+  - The Layout Designer font list now marks fonts that can be embedded in Vector Text PDFs and indicates the embedded fallback font when direct embedding is not available.
+  - Output preflight shows element-level warnings when Vector Text PDF output must substitute a layout font.
+- Improved CSV loading scalability.
+  - CSV content is parsed from readers instead of loading the entire file text into memory up front.
+  - A configurable maximum data-row limit is applied per CSV file.
+  - Preview rows sent to the Layout Designer and Tag Finder are capped by a preview-row limit.
+  - CSV load limits can be changed from the Settings menu.
+  - The existing 100 MB per-file guard remains in place.
+- Updated version metadata, package lock, README files, release notes, and manuals for v1.1.0.
 
 ## What's New in v1.0.9
 
@@ -105,6 +120,8 @@ It supports CSV-based field mapping, layout editing, PDF/PNG output, direct prin
 - Preserve blank physical CSV rows while excluding them from printing and column-count mismatch checks.
 - Detect UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS fallback.
 - Detect comma, tab, or semicolon delimiters from multiple leading records while ignoring quoted delimiters.
+- Stream CSV parsing from readers and enforce a maximum data-row limit per file.
+- Configure CSV maximum data rows and preview row limits from the Settings menu.
 
 ### Presets and Layouts
 
@@ -149,6 +166,8 @@ QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 - Previous/Next moves by page in page preview and by tag in single-tag preview.
 - Output all printable rows into one PDF.
 - Output separate PDF files per CSV.
+- Choose PDF rendering mode: Raster, or Vector Text for selectable text overlay.
+- Vector Text PDFs embed compatible selected fonts directly when possible; some Windows collection fonts can be substituted with a safe embeddable fallback and are reported by preflight.
 - Output PNG files per page or per row.
 - Direct print.
 - Progress and cancel dialogs for long-running output.
@@ -198,6 +217,7 @@ QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 - Startup CSV and startup folder.
 - Recent CSV and recent output folders.
 - Last used preset, layout, output folder, DPI, output format, print mode, and related output settings.
+- CSV maximum data-row and preview-row limits.
 - Settings backup ZIP containing `layouts`, `presets`, `recent`, and `settings`.
 - Atomic settings backup creation through a temporary ZIP before final replacement.
 - Settings import from backup ZIP.
@@ -301,9 +321,10 @@ bin/Release/net8.0-windows/win-x64/publish/
 ## NuGet Packages
 
 ```xml
+<PackageReference Include="PDFsharp" Version="6.2.2" />
 <PackageReference Include="QRCoder" Version="1.8.0" />
 ```
 
 ## Version
 
-Current version: **v1.0.9**
+Current version: **v1.1.0**

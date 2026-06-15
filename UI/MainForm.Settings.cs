@@ -10,7 +10,7 @@ public sealed partial class MainForm : Form
 {
     private void SaveCurrentSettings()
     {
-        if (loadingSettings || outputFolderBox is null || outputScopeCombo is null || outputDpiCombo is null || printScalingCombo is null || printSortCombo is null || printSortFieldCombo is null || printSortValueTypeCombo is null) return;
+        if (loadingSettings || outputFolderBox is null || outputScopeCombo is null || outputDpiCombo is null || pdfRenderModeCombo is null || printScalingCombo is null || printSortCombo is null || printSortFieldCombo is null || printSortValueTypeCombo is null) return;
 
         settings.LastOutputFolder = outputFolderBox.Text;
         if (!string.IsNullOrWhiteSpace(outputFolderBox.Text))
@@ -19,6 +19,7 @@ public sealed partial class MainForm : Form
             RefreshRecentOutputCombo();
         }
         settings.LastOutputDpi = SelectedOutputDpi();
+        settings.LastPdfRenderMode = SelectedPdfRenderMode();
         settings.LastOutputScope = CurrentOutputScope();
         settings.LastPrintScalingMode = SelectedPrintScalingMode();
         settings.LastPrintSortMode = CurrentPrintSortMode();

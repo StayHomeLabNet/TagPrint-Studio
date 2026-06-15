@@ -105,7 +105,7 @@ public sealed partial class PreviewRenderService
 
     private static string NormalizePriceText(string rawText, int decimalPlaces)
     {
-        var text = rawText.Trim();
+        var text = (rawText ?? "").Trim();
         if (decimalPlaces < 0) return text;
 
         if (!decimal.TryParse(text, NumberStyles.Number | NumberStyles.Currency, CultureInfo.InvariantCulture, out var value) &&

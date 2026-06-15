@@ -19,6 +19,7 @@ public sealed class OutputOptionsFactory : IOutputOptionsFactory
             OutputFolder = state.OutputFolder,
             ConfirmOverwrite = state.ConfirmOverwrite,
             OutputDpi = state.OutputDpi,
+            PdfRenderMode = state.PdfRenderMode,
             PrintScalingMode = state.PrintScalingMode,
             PrintSortMode = state.PrintSortMode,
             PrintSortFieldId = state.PrintSortFieldId,

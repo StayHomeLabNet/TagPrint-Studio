@@ -84,6 +84,19 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void OutputOptionsFactory_Create_CopiesPdfRenderMode()
+    {
+        var state = new OutputSelectionState
+        {
+            PdfRenderMode = PdfRenderMode.VectorText
+        };
+
+        var options = new OutputOptionsFactory().Create(state, OutputFormatType.Pdf);
+
+        Assert.Equal(PdfRenderMode.VectorText, options.PdfRenderMode);
+    }
+
+    [Fact]
     public void PresetFile_RoundTripsPrintTargetOrderColumnName()
     {
         using var temp = new TempDirectory();
@@ -1658,16 +1671,18 @@ public sealed partial class ServiceTests
     {
         public List<Dictionary<string, string>> SingleTagRows { get; } = [];
         public List<List<Dictionary<string, string>>> PageRows { get; } = [];
+        public List<RenderLayerOptions?> PageLayerOptions { get; } = [];
 
-        public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f)
+        public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f, RenderLayerOptions? layerOptions = null)
         {
             SingleTagRows.Add(new Dictionary<string, string>(rowData));
             return new Bitmap(1, 1);
         }
 
-        public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f)
+        public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f, RenderLayerOptions? layerOptions = null)
         {
             PageRows.Add(rows.Select(row => new Dictionary<string, string>(row)).ToList());
+            PageLayerOptions.Add(layerOptions);
             return new Bitmap(1, 1);
         }
 
@@ -1677,8 +1692,8 @@ public sealed partial class ServiceTests
 
     private sealed class FixedRowsPerPageRenderer(int rowsPerPage) : IPreviewRenderService
     {
-        public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f) => new(1, 1);
-        public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f) => new(1, 1);
+        public Bitmap RenderSingleTag(LayoutFile layout, PresetFile preset, Dictionary<string, string> rowData, float scale = 4f, RenderLayerOptions? layerOptions = null) => new(1, 1);
+        public Bitmap RenderPage(LayoutFile layout, PresetFile preset, List<Dictionary<string, string>> rows, float scale = 3f, RenderLayerOptions? layerOptions = null) => new(1, 1);
         public (int Columns, int Rows) GetGrid(LayoutFile layout) => (rowsPerPage, 1);
         public int GetRowsPerPage(LayoutFile layout) => rowsPerPage;
     }

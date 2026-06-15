@@ -193,11 +193,64 @@ public sealed partial class LayoutDesignerForm
     private static object[] FontFamilyItems()
     {
         using var fonts = new InstalledFontCollection();
-        return fonts.Families
+        var installed = fonts.Families
             .Select(f => f.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
-            .Cast<object>()
-            .ToArray();
+            .ToList();
+
+        var items = new List<object>();
+        foreach (var recommended in RecommendedVectorPdfFonts())
+        {
+            if (installed.Any(font => string.Equals(font, recommended, StringComparison.OrdinalIgnoreCase)))
+            {
+                items.Add(FontFamilyItem.FromFamily(recommended, recommended: true));
+            }
+        }
+
+        foreach (var name in installed.Where(name => !items.OfType<FontFamilyItem>().Any(item => string.Equals(item.FontFamily, name, StringComparison.OrdinalIgnoreCase))))
+        {
+            items.Add(FontFamilyItem.FromFamily(name));
+        }
+
+        return items.ToArray();
+    }
+
+    private static string[] RecommendedVectorPdfFonts() =>
+    [
+        "Noto Sans JP",
+        "Noto Sans CJK JP",
+        "Arial Unicode MS",
+        "Yu Mincho",
+        "Arial"
+    ];
+
+    private sealed class FontFamilyItem
+    {
+        public string FontFamily { get; init; } = "";
+        public bool Recommended { get; init; }
+        public bool PdfEmbeddable { get; init; }
+        public string EmbeddedFamily { get; init; } = "";
+
+        public override string ToString()
+        {
+            var status = PdfEmbeddable ? "PDF OK" : $"PDF -> {EmbeddedFamily}";
+            return Recommended
+                ? $"{FontFamily}  [Recommended, {status}]"
+                : $"{FontFamily}  [{status}]";
+        }
+
+        public static FontFamilyItem FromFamily(string fontFamily, bool recommended = false)
+        {
+            var resolution = WindowsPdfFontResolver.DescribeFamilyResolution(fontFamily);
+            return new FontFamilyItem
+            {
+                FontFamily = fontFamily,
+                Recommended = recommended,
+                PdfEmbeddable = resolution.IsDirectlyEmbeddable,
+                EmbeddedFamily = resolution.EmbeddedFamily
+            };
+        }
     }
 
     private string FieldDisplayText(string fieldId)

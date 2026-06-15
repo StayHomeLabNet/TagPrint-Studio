@@ -73,6 +73,10 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
                 .ThenBy(item => item.RowIndex)
                 .ToList(),
             CarryActions = carryActions,
+            FileSnapshots = csvFiles
+                .Where(file => file.Status == CsvFileStatus.Ok && !CsvFileUtility.IsPrintQueueCsv(file.FilePath))
+                .Select(file => CsvFileUtility.CreateSnapshot(file.FilePath))
+                .ToList(),
             GroupCount = duplicateGroups.Count,
             DeleteCount = items.Count(item => !item.Keep),
             CarryCellCount = carryActions.Count,
@@ -101,6 +105,8 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             .Concat(carryByFile.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        EnsureAnalyzedFilesUnchanged(result, targetPaths);
 
         var writePlans = csvFiles
             .Where(file => targetPaths.Contains(file.FilePath))
@@ -296,6 +302,26 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
             plan.Original.Note = plan.Work.Note;
             plan.Original.NewLine = plan.Work.NewLine;
             plan.Original.Snapshot = plan.Work.Snapshot;
+        }
+    }
+
+    private static void EnsureAnalyzedFilesUnchanged(DuplicateCleanupResult result, IEnumerable<string> targetPaths)
+    {
+        if (result.FileSnapshots.Count == 0)
+        {
+            return;
+        }
+
+        var snapshots = result.FileSnapshots
+            .Where(snapshot => !string.IsNullOrWhiteSpace(snapshot.FilePath))
+            .ToDictionary(snapshot => snapshot.FilePath, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var targetPath in targetPaths)
+        {
+            if (!snapshots.TryGetValue(targetPath, out var snapshot) || !CsvFileUtility.SnapshotMatches(snapshot, targetPath))
+            {
+                throw new InvalidOperationException(LocalizationService.T("duplicateCleanup.issue.fileChangedAfterAnalysis", Path.GetFileName(targetPath)));
+            }
         }
     }
 

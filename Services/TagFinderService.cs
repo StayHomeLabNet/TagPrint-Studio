@@ -32,8 +32,9 @@ public sealed class TagFinderService : ITagFinderService
             for (var i = 0; i < file.Rows.Count; i++)
             {
                 var row = file.Rows[i];
+                if (row is null) continue;
                 if (columnIndex < 0 || columnIndex >= row.Length) continue;
-                if (!string.Equals(row[columnIndex].Trim(), query, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals((row[columnIndex] ?? "").Trim(), query, StringComparison.OrdinalIgnoreCase)) continue;
 
                 matches.Add(new TagFinderMatch
                 {
@@ -58,6 +59,7 @@ public sealed class TagFinderService : ITagFinderService
             for (var i = 0; i < file.Rows.Count; i++)
             {
                 var row = file.Rows[i];
+                if (row is null) continue;
                 if (!IsTrue(ValueAt(row, flagIndex))) continue;
 
                 matches.Add(new TagFinderMatch
@@ -73,7 +75,7 @@ public sealed class TagFinderService : ITagFinderService
     }
 
 
-    private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] : "";
+    private static string ValueAt(string[] row, int index) => index >= 0 && index < row.Length ? row[index] ?? "" : "";
 
     private static bool IsTrue(string value) =>
         string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)

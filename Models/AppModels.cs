@@ -131,6 +131,7 @@ public class CsvFileSnapshot
     public long Length { get; set; }
     public DateTime LastWriteTimeUtc { get; set; }
     public bool Exists { get; set; }
+    public string Sha256 { get; set; } = "";
 }
 
 public class CsvImportResult
@@ -138,6 +139,11 @@ public class CsvImportResult
     public List<CsvFileItem> Files { get; set; } = [];
     public List<string> Warnings { get; set; } = [];
     public List<string> Errors { get; set; } = [];
+}
+
+public class CsvLoadOptions
+{
+    public int MaxDataRowsPerFile { get; set; } = 100_000;
 }
 
 public class CsvHeaderMappingProfile
@@ -200,6 +206,7 @@ public class DuplicateCleanupResult
 {
     public List<DuplicateResolutionItem> Items { get; set; } = [];
     public List<DuplicateCarryAction> CarryActions { get; set; } = [];
+    public List<CsvFileSnapshot> FileSnapshots { get; set; } = [];
     public int GroupCount { get; set; }
     public int DeleteCount { get; set; }
     public int CarryCellCount { get; set; }
@@ -300,6 +307,9 @@ public class AppSettings
     public OutputScopeType LastOutputScope { get; set; } = OutputScopeType.SinglePdfAllCsv;
     public int LastOutputDpi { get; set; } = 300;
     public OutputFormatType LastOutputFormat { get; set; } = OutputFormatType.Pdf;
+    public PdfRenderMode LastPdfRenderMode { get; set; } = PdfRenderMode.Raster;
+    public int CsvMaxDataRowsPerFile { get; set; } = 100_000;
+    public int PreviewRowLimit { get; set; } = 500;
     public PrintScalingMode LastPrintScalingMode { get; set; } = PrintScalingMode.ActualSize;
     public PrintSortMode LastPrintSortMode { get; set; } = PrintSortMode.LoadOrder;
     public string LastPrintSortFieldId { get; set; } = "";

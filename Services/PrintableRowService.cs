@@ -50,11 +50,12 @@ public static class PrintableRowService
         return SortEntries(preset, entries, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName);
     }
 
-    public static List<CsvPreviewRowContext> PreviewRows(PresetFile preset, IEnumerable<CsvFileItem> files, bool hasHeaderRow, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text, string printTargetOrderColumnName = "")
+    public static List<CsvPreviewRowContext> PreviewRows(PresetFile preset, IEnumerable<CsvFileItem> files, bool hasHeaderRow, PrintSortMode sortMode = PrintSortMode.LoadOrder, string sortFieldId = "", PrintSortValueType sortValueType = PrintSortValueType.Text, string printTargetOrderColumnName = "", int maxRows = 500)
     {
         var contexts = new List<CsvPreviewRowContext>();
+        var rowLimit = maxRows <= 0 ? int.MaxValue : maxRows;
 
-        foreach (var entry in PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName))
+        foreach (var entry in PrintableRowEntries(preset, files, sortMode, sortFieldId, sortValueType, printTargetOrderColumnName).Take(rowLimit))
         {
             var csvFile = entry.File;
             contexts.Add(new CsvPreviewRowContext

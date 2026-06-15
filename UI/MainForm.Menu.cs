@@ -43,6 +43,7 @@ public sealed partial class MainForm : Form
         confirmPrintTargetsMenuItem = Item("main.menu.confirmPrintTargets", (_, _) => ToggleConfirmPrintTargets());
         confirmPrintTargetsMenuItem.CheckOnClick = true;
         largePrintWarningSettingsMenuItem = Item("main.menu.largePrintWarning", (_, _) => ConfigureLargePrintWarning());
+        csvLoadSettingsMenuItem = Item("main.menu.csvLoadSettings", (_, _) => ConfigureCsvLoadSettings());
         appDataLocationMenuItem = new ToolStripMenuItem(AppDataLocationMenuText());
         appDataLocationMenuItem.Click += (_, _) => ConfigureAppDataLocation();
         openAppDataLocationMenuItem = new ToolStripMenuItem(OpenAppDataLocationMenuText());
@@ -66,6 +67,7 @@ public sealed partial class MainForm : Form
             new ToolStripSeparator(),
             confirmPrintTargetsMenuItem,
             largePrintWarningSettingsMenuItem,
+            csvLoadSettingsMenuItem,
             new ToolStripSeparator(),
             appDataLocationMenuItem,
             openAppDataLocationMenuItem,
@@ -240,6 +242,16 @@ public sealed partial class MainForm : Form
         largePrintWarningSettingsMenuItem.Text = settings.LargePrintPageWarningThreshold > 0
             ? LocalizationService.T("main.menu.largePrintWarningWithValue", settings.LargePrintPageWarningThreshold)
             : LocalizationService.T("main.menu.largePrintWarningDisabled");
+    }
+
+    private void ConfigureCsvLoadSettings()
+    {
+        using var dialog = new CsvLoadSettingsDialog(settings.CsvMaxDataRowsPerFile, settings.PreviewRowLimit);
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        settings.CsvMaxDataRowsPerFile = dialog.MaxDataRowsPerFile;
+        settings.PreviewRowLimit = dialog.PreviewRowLimit;
+        SaveCurrentSettings();
     }
 
     private void SetBackupCleanupStartupMode(BackupCleanupStartupMode mode)
