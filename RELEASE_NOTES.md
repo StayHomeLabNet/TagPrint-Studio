@@ -2,6 +2,29 @@
 
 ## English
 
+### v1.1.1
+
+#### Tag Finder
+
+- Added a left-side **Clear All Print Targets** action in Tag Finder while keeping the existing right-side action buttons unchanged.
+- The clear action sets the print target column to `false` and clears the print order column for all loaded CSV files, including queue CSV files.
+- Added a confirmation dialog before the bulk clear operation saves CSV changes.
+- The confirmation shows the loaded CSV count and target row count, and defaults to the safer **No** button.
+- When **Show True Only** is active, clearing all print targets now refreshes the result list to the natural no-true-rows state.
+- Increased the Tag Finder minimum width so the left-side clear action and right-side workflow buttons fit more reliably.
+
+#### Layout Designer
+
+- Added text editor context menu actions for lowercase, uppercase, and title-style conversion while editing text directly on the canvas.
+- Improved Undo/Redo behavior so committed canvas text edits can be reverted more consistently after applying edits with `Enter`.
+
+#### Documentation and Release Readiness
+
+- Updated version metadata and the About dialog to v1.1.1.
+- Reviewed and updated README files, release notes, and English/Japanese manuals for v1.1.1.
+- Documented that local Visual Studio `.vs` folders such as `docs/.vs` must be excluded from release ZIP packages.
+- Added a **Save** action to Backup File Cleanup so retention settings can be saved without deleting files.
+
 ### v1.1.0
 
 #### PDF Rendering
@@ -232,6 +255,29 @@
 ---
 
 ## Japanese
+
+### v1.1.1
+
+#### タグファインダー
+
+- タグファインダー下部の左側に **印刷対象をすべて解除** を追加し、右側の既存操作ボタンはそのまま維持しました。
+- 一括解除は、キュー CSV を含む読み込み済みすべての CSV を対象に、印刷対象列を `false`、印刷順列を空欄にします。
+- CSV を保存する前に確認ダイアログを表示するようにしました。
+- 確認ダイアログには読み込み中の CSV 件数と対象行数を表示し、既定ボタンを安全側の **いいえ** にしました。
+- **true のみ表示** 中に一括解除した場合、一覧を自然な「true 行なし」状態へ更新します。
+- 左側の一括解除ボタンと右側の既存ボタン群が収まりやすいよう、タグファインダーの最小幅を広げました。
+
+#### レイアウトデザイナー
+
+- キャンバス上でテキストを直接編集中の右クリックメニューに、小文字、大文字、タイトル形式への変換を追加しました。
+- `Enter` で確定したキャンバステキスト編集も Undo/Redo で戻しやすいよう改善しました。
+
+#### ドキュメントとリリース準備
+
+- バージョン情報とバージョン情報ダイアログを v1.1.1 に更新しました。
+- README、リリースノート、英日マニュアルを v1.1.1 向けに見直しました。
+- `docs/.vs` などローカル Visual Studio `.vs` フォルダーをリリース ZIP に含めない注意を明記しました。
+- バックアップファイル整理に **保存** を追加し、ファイル削除なしで保持設定を保存できるようにしました。
 
 ### v1.1.0
 

@@ -5,6 +5,7 @@ using System.Text;
 using TagPrintStudio.Enums;
 using TagPrintStudio.Models;
 using TagPrintStudio.Services;
+using TagPrintStudio.UI;
 
 namespace TagPrintStudio.Tests;
 
@@ -377,6 +378,16 @@ public sealed partial class ServiceTests
             (warning.Contains("Vector PDF", StringComparison.OrdinalIgnoreCase) ||
              warning.Contains("ベクターPDF", StringComparison.OrdinalIgnoreCase)) &&
             warning.Contains("Yu Gothic UI", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void LayoutDesigner_ProductTitleCase_KeepsSmallProductWordsLowercase()
+    {
+        var method = typeof(LayoutDesignerForm).GetMethod("ToProductTitleCase", BindingFlags.NonPublic | BindingFlags.Static);
+
+        var converted = Assert.IsType<string>(method!.Invoke(null, ["coasters, set of 4, ceramic artist cities"]));
+
+        Assert.Equal("Coasters, set of 4, Ceramic Artist Cities", converted);
     }
 
     [Fact]

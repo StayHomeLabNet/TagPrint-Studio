@@ -279,6 +279,7 @@ public sealed partial class LayoutDesignerForm
             BackColor = Color.White,
             ForeColor = Color.Black
         };
+        canvasTextEditor.ContextMenuStrip = CreateCanvasTextEditorContextMenu(canvasTextEditor);
         canvasTextEditor.KeyDown += CanvasTextEditor_KeyDown;
         canvasTextEditor.Leave += (_, _) => EndCanvasTextEdit(commit: true);
         previewBox.Controls.Add(canvasTextEditor);
@@ -288,6 +289,174 @@ public sealed partial class LayoutDesignerForm
 
         statusLabel.Text = LocalizationService.T("layout.message.canvasTextEditing");
     }
+
+    private static ContextMenuStrip CreateCanvasTextEditorContextMenu(TextBox editor)
+    {
+        var menu = new ContextMenuStrip();
+        var undo = MenuItem("layout.context.undo", (_, _) => editor.Undo());
+        var cut = MenuItem("layout.context.cut", (_, _) => editor.Cut());
+        var copy = MenuItem("layout.context.copy", (_, _) => editor.Copy());
+        var paste = MenuItem("layout.context.paste", (_, _) => editor.Paste());
+        var delete = MenuItem("layout.context.delete", (_, _) => editor.SelectedText = string.Empty);
+        var selectAll = MenuItem("layout.context.selectAll", (_, _) => editor.SelectAll());
+        var lower = MenuItem("layout.context.toLower", (_, _) => TransformEditorText(editor, text => text.ToLowerInvariant()));
+        var upper = MenuItem("layout.context.toUpper", (_, _) => TransformEditorText(editor, text => text.ToUpperInvariant()));
+        var title = MenuItem("layout.context.toTitle", (_, _) => TransformEditorText(editor, ToProductTitleCase));
+
+        menu.Items.AddRange([
+            undo,
+            new ToolStripSeparator(),
+            cut,
+            copy,
+            paste,
+            delete,
+            new ToolStripSeparator(),
+            lower,
+            upper,
+            title,
+            new ToolStripSeparator(),
+            selectAll
+        ]);
+
+        menu.Opening += (_, e) =>
+        {
+            if (editor.IsDisposed)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            var hasText = editor.TextLength > 0;
+            var hasSelection = editor.SelectionLength > 0;
+            undo.Enabled = editor.CanUndo;
+            cut.Enabled = hasSelection;
+            copy.Enabled = hasSelection;
+            delete.Enabled = hasSelection;
+            lower.Enabled = hasText;
+            upper.Enabled = hasText;
+            title.Enabled = hasText;
+            selectAll.Enabled = hasText;
+        };
+
+        return menu;
+    }
+
+    private static ToolStripMenuItem MenuItem(string key, EventHandler onClick) =>
+        new(LocalizationService.T(key), null, onClick);
+
+    private static void TransformEditorText(TextBox editor, Func<string, string> transform)
+    {
+        var selectionStart = editor.SelectionStart;
+        var selectionLength = editor.SelectionLength;
+        if (selectionLength > 0)
+        {
+            var selected = editor.SelectedText;
+            editor.SelectedText = transform(selected);
+            editor.SelectionStart = selectionStart;
+            editor.SelectionLength = selectionLength;
+        }
+        else
+        {
+            editor.Text = transform(editor.Text);
+            editor.SelectionStart = Math.Min(selectionStart, editor.TextLength);
+            editor.SelectionLength = 0;
+        }
+
+        editor.Focus();
+    }
+
+    private static string ToProductTitleCase(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        var lowerText = text.ToLowerInvariant();
+        var result = new System.Text.StringBuilder(lowerText.Length);
+        var word = new System.Text.StringBuilder();
+        var wordIndex = 0;
+
+        void FlushWord()
+        {
+            if (word.Length == 0)
+            {
+                return;
+            }
+
+            var value = word.ToString();
+            result.Append(ShouldCapitalizeProductTitleWord(value, wordIndex) ? CapitalizeWord(value) : value);
+            word.Clear();
+            wordIndex++;
+        }
+
+        foreach (var c in lowerText)
+        {
+            if (char.IsLetterOrDigit(c) || c == '\'')
+            {
+                word.Append(c);
+            }
+            else
+            {
+                FlushWord();
+                result.Append(c);
+            }
+        }
+
+        FlushWord();
+        return result.ToString();
+    }
+
+    private static bool ShouldCapitalizeProductTitleWord(string word, int wordIndex)
+    {
+        if (wordIndex == 0)
+        {
+            return true;
+        }
+
+        return !ProductTitleLowercaseWords.Contains(word);
+    }
+
+    private static string CapitalizeWord(string word)
+    {
+        for (var i = 0; i < word.Length; i++)
+        {
+            if (!char.IsLetter(word[i]))
+            {
+                continue;
+            }
+
+            return word[..i] + char.ToUpperInvariant(word[i]) + word[(i + 1)..];
+        }
+
+        return word;
+    }
+
+    private static readonly HashSet<string> ProductTitleLowercaseWords = new(StringComparer.Ordinal)
+    {
+        "a",
+        "an",
+        "and",
+        "as",
+        "at",
+        "but",
+        "by",
+        "for",
+        "from",
+        "in",
+        "into",
+        "nor",
+        "of",
+        "on",
+        "or",
+        "per",
+        "set",
+        "the",
+        "to",
+        "via",
+        "vs",
+        "with"
+    };
 
     private Rectangle ElementClientBounds(LayoutElement element)
     {

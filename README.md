@@ -1,10 +1,23 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.1.0** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.1.1** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
 It supports CSV-based field mapping, layout editing, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## What's New in v1.1.1
+
+- Improved Tag Finder safety and release readiness.
+  - Added **Clear All Print Targets** to clear the print target column for all loaded CSV files, including queue CSV files.
+  - The bulk clear action now shows a confirmation dialog with the loaded CSV count and target row count before saving.
+  - When **Show True Only** is active, clearing all print targets now refreshes the list to the natural empty state.
+  - The Tag Finder minimum width was widened so the new left-side action and existing right-side actions fit more reliably.
+- Improved Layout Designer text editing.
+  - The canvas text editor right-click menu now includes lowercase, uppercase, and title-style conversions.
+  - Undo/Redo now covers committed canvas text edits more consistently after applying text with `Enter`.
+- Updated version metadata, README files, release notes, and English/Japanese manuals for v1.1.1.
+- Documented the release packaging reminder to exclude local Visual Studio `.vs` folders such as `docs/.vs`.
 
 ## What's New in v1.1.0
 
@@ -141,6 +154,8 @@ It supports CSV-based field mapping, layout editing, selectable PDF rendering, P
 - Edit CSV cell values from the canvas toolbar and save them explicitly.
 - Double-click text to edit directly on the canvas.
 - `Enter` applies text edits, `Shift + Enter` inserts a line break, and `Esc` cancels.
+- Use the direct text editor context menu to convert text to lowercase, uppercase, or title style.
+- Undo/Redo can revert committed canvas text edits.
 - Use canvas area controls to expand, reset, or shrink the visible canvas area.
 
 ### Barcode and QR Code Support
@@ -193,6 +208,7 @@ QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 - The small preview can open the current row directly in Layout Designer.
 - Print quantity support with queue CSV creation.
 - Delete all queue CSV files from Tag Finder.
+- Clear all print targets across loaded CSV files, including queue CSV files, with confirmation.
 - Queue CSV files use timestamped names and automatically add numeric suffixes when needed to avoid overwriting existing queue files.
 
 ### CSV Duplicate Cleanup and Merge
@@ -221,7 +237,7 @@ QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 - Settings backup ZIP containing `layouts`, `presets`, `recent`, and `settings`.
 - Atomic settings backup creation through a temporary ZIP before final replacement.
 - Settings import from backup ZIP.
-- Backup file cleanup for timestamped CSV backups, with retention-based preview and Recycle Bin cleanup.
+- Backup file cleanup for timestamped CSV backups, with retention settings, preview, settings-only save, and Recycle Bin cleanup.
 - Open settings file location.
 - Toggle print target confirmation.
 - Crash logs under the app data `logs` folder for unexpected application errors.
@@ -327,4 +343,4 @@ bin/Release/net8.0-windows/win-x64/publish/
 
 ## Version
 
-Current version: **v1.1.0**
+Current version: **v1.1.1**

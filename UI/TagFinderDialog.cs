@@ -80,7 +80,7 @@ public sealed partial class TagFinderDialog : Form
         Text = T("tagFinder.title");
         Width = 1220;
         Height = 760;
-        MinimumSize = new Size(1040, 620);
+        MinimumSize = new Size(1140, 620);
         StartPosition = FormStartPosition.CenterParent;
         BackColor = Color.FromArgb(244, 246, 248);
         Font = new Font("Segoe UI", 10f);

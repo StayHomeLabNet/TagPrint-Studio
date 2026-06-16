@@ -13,9 +13,9 @@ internal sealed class CsvLoadSettingsDialog : Form
     public CsvLoadSettingsDialog(int maxDataRowsPerFile, int previewRowLimit)
     {
         Text = LocalizationService.T("main.csvLoadSettings.title");
-        Width = 420;
-        Height = 210;
-        MinimumSize = new Size(420, 210);
+        Width = 440;
+        Height = 215;
+        MinimumSize = new Size(440, 215);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -35,7 +35,7 @@ internal sealed class CsvLoadSettingsDialog : Form
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
         layout.Controls.Add(Label(LocalizationService.T("main.csvLoadSettings.maxRows")), 0, 0);
         layout.Controls.Add(maxDataRowsBox, 1, 0);
@@ -45,10 +45,12 @@ internal sealed class CsvLoadSettingsDialog : Form
         var buttons = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = FlowDirection.RightToLeft,
+            Padding = new Padding(0, 10, 0, 0),
+            WrapContents = false
         };
-        var ok = new Button { Text = LocalizationService.T("common.ok"), DialogResult = DialogResult.OK, Width = 92 };
-        var cancel = new Button { Text = LocalizationService.T("common.cancel"), DialogResult = DialogResult.Cancel, Width = 92 };
+        var ok = new Button { Text = LocalizationService.T("common.ok"), DialogResult = DialogResult.OK, Width = 92, Height = 32, Margin = new Padding(6, 0, 0, 0) };
+        var cancel = new Button { Text = LocalizationService.T("common.cancel"), DialogResult = DialogResult.Cancel, Width = 92, Height = 32, Margin = new Padding(6, 0, 0, 0) };
         buttons.Controls.Add(ok);
         buttons.Controls.Add(cancel);
         layout.Controls.Add(buttons, 0, 2);

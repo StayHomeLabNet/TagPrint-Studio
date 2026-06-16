@@ -164,6 +164,45 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void TagFinderCsvService_SaveFlags_CanClearAllLoadedCsvRowsIncludingQueueCsv()
+    {
+        using var temp = new TempDirectory();
+        var parentPath = temp.WriteText(
+            "parent.csv",
+            "Code,tagPrint,tagPrintOrder\r\nA,true,1\r\nB,true,2\r\n",
+            Encoding.UTF8);
+        var queuePath = temp.WriteText(
+            "print_queue_001.csv",
+            "Code,tagPrint,tagPrintOrder\r\nA,true,1\r\n\r\n",
+            Encoding.UTF8);
+        var parent = CsvFile(parentPath, ["Code", "tagPrint", "tagPrintOrder"], ["A", "true", "1"], ["B", "true", "2"]);
+        var queue = CsvFile(queuePath, ["Code", "tagPrint", "tagPrintOrder"], ["A", "true", "1"], Array.Empty<string>());
+        var files = new List<CsvFileItem> { parent, queue };
+
+        new TagFinderCsvService().SaveFlags(
+            files,
+            files
+                .SelectMany(file => file.Rows.Select((row, rowIndex) => new { file, row, rowIndex }))
+                .Where(item => !CsvFileUtility.IsBlankRow(item.row))
+                .Select(item => new TagFinderSaveSelection
+                {
+                    File = item.file,
+                    RowIndex = item.rowIndex,
+                    Checked = false
+                }),
+            "tagPrint",
+            "tagPrintOrder",
+            hasHeaderRow: true);
+
+        Assert.Equal(["A", "false", ""], parent.Rows[0]);
+        Assert.Equal(["B", "false", ""], parent.Rows[1]);
+        Assert.Equal(["A", "false", ""], queue.Rows[0]);
+        Assert.Empty(queue.Rows[1]);
+        Assert.Contains("A,false,", File.ReadAllText(parentPath, Encoding.UTF8));
+        Assert.Contains("A,false,", File.ReadAllText(queuePath, Encoding.UTF8));
+    }
+
+    [Fact]
     public void TagFinderCsvService_CreatePrintQueueCsv_WritesAdditionalRowsOnly()
     {
         using var temp = new TempDirectory();

@@ -40,8 +40,8 @@ public sealed partial class LayoutDesignerForm : Form
     private readonly List<CsvPreviewRowContext> previewRows;
     private readonly Dictionary<string, string> previewData;
     private readonly int initialPreviewRowIndex;
-    private readonly Stack<List<LayoutElement>> undoStack = new();
-    private readonly Stack<List<LayoutElement>> redoStack = new();
+    private readonly Stack<LayoutHistorySnapshot> undoStack = new();
+    private readonly Stack<LayoutHistorySnapshot> redoStack = new();
 
     private LayoutFile currentLayout = new();
     private string currentLayoutPath = "";
@@ -536,6 +536,28 @@ public sealed partial class LayoutDesignerForm : Form
         }
     }
 
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (canvasTextEditor is not null && canvasTextEditor.Focused)
+        {
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        if (keyData == (Keys.Control | Keys.Z))
+        {
+            Undo();
+            return true;
+        }
+
+        if (keyData == (Keys.Control | Keys.Y))
+        {
+            Redo();
+            return true;
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
     private LayoutElement? SelectedElement()
     {
         return elementsGrid.CurrentRow?.DataBoundItem as LayoutElement
@@ -584,6 +606,56 @@ public sealed partial class LayoutDesignerForm : Form
     private static double Clamp(double value, double min, double max) => Math.Max(min, Math.Min(max, value));
 
     private static List<LayoutElement> CloneElements(IEnumerable<LayoutElement> elements) => elements.Select(CloneElement).ToList();
+
+    private LayoutFile CloneCurrentLayout()
+    {
+        var clone = CloneLayout(currentLayout);
+        clone.Elements = elementRows.OrderBy(e => e.ZIndex).Select(CloneElement).ToList();
+        return clone;
+    }
+
+    private static LayoutFile CloneLayout(LayoutFile layout) => new()
+    {
+        FormatVersion = layout.FormatVersion,
+        LayoutId = layout.LayoutId,
+        LayoutName = layout.LayoutName,
+        Description = layout.Description,
+        Paper = new PaperSettings
+        {
+            PaperSize = layout.Paper.PaperSize,
+            Unit = layout.Paper.Unit,
+            CustomWidth = layout.Paper.CustomWidth,
+            CustomHeight = layout.Paper.CustomHeight
+        },
+        Tag = new TagSettings
+        {
+            Width = layout.Tag.Width,
+            Height = layout.Tag.Height
+        },
+        Margin = new MarginSettings
+        {
+            Top = layout.Margin.Top,
+            Bottom = layout.Margin.Bottom,
+            Left = layout.Margin.Left,
+            Right = layout.Margin.Right
+        },
+        Spacing = new SpacingSettings
+        {
+            Horizontal = layout.Spacing.Horizontal,
+            Vertical = layout.Spacing.Vertical
+        },
+        Grid = new GridSettings
+        {
+            AutoCalculate = layout.Grid.AutoCalculate,
+            Columns = layout.Grid.Columns,
+            Rows = layout.Grid.Rows
+        },
+        Elements = layout.Elements.Select(CloneElement).ToList(),
+        ExcludedAutoFieldIds = layout.ExcludedAutoFieldIds.ToList(),
+        CreatedAt = layout.CreatedAt,
+        UpdatedAt = layout.UpdatedAt,
+        FilePath = layout.FilePath
+    };
 
     private static LayoutElement CloneElement(LayoutElement element) => new()
     {

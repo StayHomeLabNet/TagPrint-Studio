@@ -267,20 +267,45 @@ public sealed partial class TagFinderDialog
         };
         root.Controls.Add(statusLabel, 0, 2);
 
-        var bottom = new FlowLayoutPanel
+        var bottom = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = SurfaceColor
+        };
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var leftButtons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = SurfaceColor,
+            Padding = new Padding(12, 9, 0, 8)
+        };
+        leftButtons.Controls.Add(Button(T("tagFinder.button.clearAllPrintTargets"), (_, _) => ClearAllPrintTargets(), width: 180, fontSize: 8.5f));
+
+        var rightButtons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = SurfaceColor,
             Padding = new Padding(0, 9, 12, 8)
         };
-        bottom.Controls.Add(Button(T("tagFinder.button.close"), (_, _) => CloseWithUnusedQueueCsvCleanup(), width: 100));
-        bottom.Controls.Add(Button(T("tagFinder.button.queueAndNext"), (_, _) => CreateQueueAndNext(), primary: true, width: 150));
-        bottom.Controls.Add(Button(T("tagFinder.button.createQueue"), (_, _) => CreateQueue(), primary: true, width: 118));
-        bottom.Controls.Add(Button(T("tagFinder.button.saveAndNext"), (_, _) => SaveAndNext(), primary: true, width: 132));
-        bottom.Controls.Add(Button(T("tagFinder.button.save"), (_, _) => Save(), primary: true, width: 100));
-        bottom.Controls.Add(Button(T("tagFinder.button.deleteAllQueueCsvs"), (_, _) => DeleteAllQueueCsvs(), width: 220));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.close"), (_, _) => CloseWithUnusedQueueCsvCleanup(), width: 100));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.queueAndNext"), (_, _) => CreateQueueAndNext(), primary: true, width: 150));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.createQueue"), (_, _) => CreateQueue(), primary: true, width: 118));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.saveAndNext"), (_, _) => SaveAndNext(), primary: true, width: 132));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.save"), (_, _) => Save(), primary: true, width: 100));
+        rightButtons.Controls.Add(Button(T("tagFinder.button.deleteAllQueueCsvs"), (_, _) => DeleteAllQueueCsvs(), width: 220));
+        bottom.Controls.Add(leftButtons, 0, 0);
+        bottom.Controls.Add(rightButtons, 1, 0);
         root.Controls.Add(bottom, 0, 3);
     }
 

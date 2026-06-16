@@ -120,10 +120,13 @@ internal sealed class BackupCleanupDialog : Form
         var closeButton = DialogButton(LocalizationService.T("common.close"));
         closeButton.DialogResult = DialogResult.Cancel;
         closeButton.Click += (_, _) => Close();
+        var saveButton = DialogButton(LocalizationService.T("backupCleanup.saveSettings"));
+        saveButton.Click += (_, _) => SaveSettingsAndClose();
         var cleanupButton = DialogButton(LocalizationService.T("backupCleanup.cleanUp"), primary: true, width: 118);
         cleanupButton.Click += (_, _) => Cleanup();
 
         buttons.Controls.Add(closeButton);
+        buttons.Controls.Add(saveButton);
         buttons.Controls.Add(cleanupButton);
         return buttons;
     }
@@ -224,6 +227,12 @@ internal sealed class BackupCleanupDialog : Form
         {
             MessageBox.Show(ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void SaveSettingsAndClose()
+    {
+        DialogResult = DialogResult.OK;
+        Close();
     }
 
     private static Label RowLabel(string text) => new()

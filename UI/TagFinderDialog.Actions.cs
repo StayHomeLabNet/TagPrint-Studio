@@ -115,6 +115,80 @@ public sealed partial class TagFinderDialog
         return true;
     }
 
+    private void ClearAllPrintTargets()
+    {
+        CommitGridEdit();
+        SaveFinderSettings();
+
+        if (csvFiles.Count == 0)
+        {
+            statusLabel.Text = T("tagFinder.message.noCsvToSave");
+            return;
+        }
+
+        var selections = csvFiles
+            .SelectMany(file => file.Rows.Select((row, rowIndex) => new { file, row, rowIndex }))
+            .Where(item => !CsvFileUtility.IsBlankRow(item.row))
+            .Select(item => new TagFinderSaveSelection
+            {
+                File = item.file,
+                RowIndex = item.rowIndex,
+                Checked = false
+            })
+            .ToList();
+        var message = TF("tagFinder.confirm.clearAllPrintTargets", csvFiles.Count, selections.Count);
+        if (MessageBox.Show(
+                message,
+                Text,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        if (!ConfirmCsvColumnAlignmentBeforeSave())
+        {
+            return;
+        }
+
+        try
+        {
+            tagFinderCsvService.SaveFlags(
+                csvFiles,
+                selections,
+                FlagColumnName(),
+                OrderColumnName(),
+                hasHeaderRow);
+
+            if (showingCheckedOnlyRows)
+            {
+                resultRows.Clear();
+            }
+            else
+            {
+                foreach (var row in resultRows)
+                {
+                    row.Checked = false;
+                }
+            }
+
+            CsvSaved = true;
+            queueTargetFromDoubleClick = null;
+            UpdateTargetHeaderCheckState();
+            RefreshTargetCheckColumn();
+            SelectFirstResult();
+            UpdateTagPreview();
+            statusLabel.Text = showingCheckedOnlyRows
+                ? T("tagFinder.message.noTrueRows")
+                : T("tagFinder.message.allPrintTargetsCleared");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(CsvFileUtility.BuildUserFriendlySaveErrorMessage(ex), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private bool ConfirmCsvColumnAlignmentBeforeSave()
     {
         var flagColumnName = FlagColumnName();

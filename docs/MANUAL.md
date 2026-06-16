@@ -1,10 +1,10 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.1.0**
+Target version: **TagPrint Studio v1.1.1**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
-It supports CSV field mapping, layout design, page and single-tag preview, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
+It supports CSV field mapping, layout design, page and single-tag preview, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation and cleanup, bulk print-target clearing, barcode/QR code elements, Japanese/English UI localization, recent files, startup loading, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ---
 
@@ -39,6 +39,7 @@ TagPrint Studio is intended for workflows such as:
 - Selecting printable rows with a flag column such as `tagPrint`.
 - Searching Item Codes and marking matching rows for output.
 - Creating extra print queue rows when more than one copy is needed.
+- Clearing all print targets safely after confirmation.
 - Preserving source CSV structure, including blank physical rows.
 - Cleaning duplicate rows across multiple CSV files.
 - Merging multiple CSV files into one parent CSV.
@@ -53,7 +54,7 @@ Main screens:
 |---|---|
 | Main window | CSV import, field mapping, preview, output, export, and print |
 | Layout Designer | Edit paper, tag layout, elements, images, barcodes, QR codes, and CSV preview rows |
-| Tag Finder | Search CSV rows, mark target rows, create print queue CSV files, and preview tags |
+| Tag Finder | Search CSV rows, mark/clear target rows, create print queue CSV files, and preview tags |
 | CSV Duplicate Cleanup | Detect duplicate rows and decide which row to keep |
 | CSV Merge | Merge CSV files from a folder into a parent CSV |
 | Backup File Cleanup | Preview and remove old timestamped CSV backup files |
@@ -461,7 +462,7 @@ This behavior is especially important for:
 - PDF export per CSV.
 - Re-exporting into a folder that already contains older files with the same names.
 
-### 7.9 Large Print Warning
+### 7.10 Large Print Warning
 
 The Settings menu includes **Large Print Warning**.
 
@@ -606,6 +607,8 @@ You can:
 - Use `Enter` to apply text edits.
 - Use `Shift + Enter` to insert a line break.
 - Use `Esc` to cancel text edits.
+- Use the text editor right-click menu for undo, cut, copy, paste, delete, select all, lowercase conversion, uppercase conversion, and title-style conversion.
+- Committed canvas text edits are added to the layout edit history, so they can be reverted with Undo.
 
 Japanese IME input is supported during direct text editing.
 
@@ -696,6 +699,7 @@ Controls:
 | Show True Only | Show rows where the save column is `true` |
 | Auto-check after search | Automatically check matching rows |
 | Delete all queue CSV | Delete queue CSV files |
+| Clear all print targets | Set the print target column to `false` for all loaded CSV files, including queue CSV files, and clear the order column |
 | Open in Layout Designer | Open the current preview row in Layout Designer |
 | Save | Write value to checked rows and create queue CSV if quantity is 2 or more |
 | Save & Next | Save and move to next search |
@@ -724,6 +728,9 @@ Preview behavior:
 Queue cleanup:
 
 - Queue CSV files can be deleted from Tag Finder.
+- All print targets can be cleared from Tag Finder after confirmation. This also updates loaded queue CSV files.
+- The clear confirmation shows the number of loaded CSV files and target rows, and defaults to **No**.
+- If **Show True Only** is active, clearing all print targets refreshes the list to the no-true-rows state.
 - Queue CSV files can be removed or deleted from the main window CSV list.
 - When Tag Finder closes, it can detect queue CSV files that no longer contain any rows still marked for output and offer cleanup.
 
@@ -874,6 +881,7 @@ Backup File Cleanup manages timestamped CSV backups such as `products.csv.bak-20
 - Set retention days.
 - Set maximum backup count per CSV.
 - Preview the matching backup files before cleanup.
+- Save the target folder, retention days, and maximum count without deleting files.
 - Cleanup moves selected backup files to the Recycle Bin.
 
 When the startup folder is configured or changed, the app can also update the Backup File Cleanup target folder after confirmation.
@@ -1023,7 +1031,7 @@ Before release:
 
 1. Start the app.
 2. Confirm Japanese and English UI.
-3. Confirm the About dialog shows v1.1.0.
+3. Confirm the About dialog shows v1.1.1.
 4. Load sample CSV and folder CSV.
 5. Confirm UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS CSV behavior where possible.
 6. Confirm delimiter detection for comma, tab, and semicolon files.
@@ -1040,17 +1048,21 @@ Before release:
 17. Move, resize, lock, hide, and arrange elements.
 18. Use Expand/Normal/Shrink canvas controls.
 19. Edit text on canvas with `Enter`, `Shift + Enter`, and `Esc`.
-20. Save layout and reload.
-21. Test Code128, EAN-13/JAN-13, and QR Code.
-22. Use Tag Finder to save `true`.
-23. Use Tag Finder print quantity to create a queue CSV.
-24. Delete queue CSV files.
-25. Run CSV Duplicate Cleanup preview and apply on test data.
-26. Run CSV Merge on test data.
-27. Run Backup File Cleanup preview and cleanup on disposable test backups.
-28. Backup settings and confirm existing backup ZIP is not lost on failure scenarios where possible.
-29. Import settings backup.
-30. Open settings file location and app data location.
-31. Confirm crash logs can be written by `CrashLogService` tests.
-32. Run automated tests.
-33. Build and publish the `net8.0-windows` release.
+20. Confirm canvas text edit context menu actions: lowercase, uppercase, and title-style conversion.
+21. Confirm Undo/Redo can revert committed canvas text edits.
+22. Save layout and reload.
+23. Test Code128, EAN-13/JAN-13, and QR Code.
+24. Use Tag Finder to save `true`.
+25. Use Tag Finder print quantity to create a queue CSV.
+26. Use Tag Finder **Clear All Print Targets** and confirm the warning, target row count, queue CSV update, and **Show True Only** empty-state refresh.
+27. Delete queue CSV files.
+28. Run CSV Duplicate Cleanup preview and apply on test data.
+29. Run CSV Merge on test data.
+30. Run Backup File Cleanup preview and cleanup on disposable test backups.
+31. Backup settings and confirm existing backup ZIP is not lost on failure scenarios where possible.
+32. Import settings backup.
+33. Open settings file location and app data location.
+34. Confirm crash logs can be written by `CrashLogService` tests.
+35. Confirm the release ZIP/package does not include local `.vs` folders such as `docs/.vs`.
+36. Run automated tests.
+37. Build and publish the `net8.0-windows` release.
