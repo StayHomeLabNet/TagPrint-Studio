@@ -113,7 +113,7 @@ public static partial class LocalizationService
                     ["main.menu.language"] = "Language",
                     ["main.menu.about"] = "About",
                     ["main.about.title"] = "About TagPrint Studio",
-                    ["main.about.body"] = "TagPrint Studio v1.1.1\n\nCSV-driven tag layout, preview, export, and printing.",
+                    ["main.about.body"] = "TagPrint Studio v1.1.2\n\nCSV-driven tag layout, preview, export, and printing.",
                     ["main.message.presetSaved"] = "Preset saved.",
                     ["main.message.presetCreated"] = "Preset created.",
                     ["main.message.presetDuplicated"] = "Preset duplicated.",

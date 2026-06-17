@@ -2,6 +2,20 @@
 
 ## English
 
+### v1.1.2
+
+#### Main Preview
+
+- Added `Ctrl + mouse wheel` zoom support for the main page preview even when another control has focus.
+- Clicking a tag in page preview now switches directly to that tag in single-tag preview.
+- `Ctrl + click` on a tag in page preview opens Layout Designer with that tag's CSV row selected.
+- Opening Layout Designer from single-tag preview now selects the currently displayed tag row.
+
+#### Documentation and Version
+
+- Updated version metadata and the About dialog to v1.1.2.
+- Updated README files, release notes, and English/Japanese manuals for v1.1.2.
+
 ### v1.1.1
 
 #### Tag Finder
@@ -255,6 +269,20 @@
 ---
 
 ## Japanese
+
+### v1.1.2
+
+#### メインプレビュー
+
+- メイン画面のページ全体プレビューで、他のコントロールにフォーカスがあっても `Ctrl + マウスホイール` で拡大縮小できるようにしました。
+- ページ全体プレビューでタグをクリックすると、そのタグの 1 枚拡大表示へ直接切り替わるようにしました。
+- ページ全体プレビューでタグを `Ctrl + クリック` すると、そのタグの CSV 行を選択した状態でレイアウトデザイナーを開けるようにしました。
+- 1 枚拡大表示からレイアウトデザイナーを開いたとき、表示中のタグ行が選択されるようにしました。
+
+#### ドキュメントとバージョン
+
+- バージョン情報とバージョン情報ダイアログを v1.1.2 に更新しました。
+- README、リリースノート、英日マニュアルを v1.1.2 向けに更新しました。
 
 ### v1.1.1
 

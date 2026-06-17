@@ -184,6 +184,32 @@ public sealed partial class MainForm : Form
         RedrawPreview();
     }
 
+    public bool PreFilterMessage(ref Message m)
+    {
+        if (m.Msg != WmMouseWheel || (ModifierKeys & Keys.Control) != Keys.Control)
+        {
+            return false;
+        }
+
+        if (previewViewportHost is null
+            || previewBox is null
+            || previewMode != PreviewMode.Page
+            || previewBox.Image is null
+            || !previewViewportHost.RectangleToScreen(previewViewportHost.ClientRectangle).Contains(Cursor.Position))
+        {
+            return false;
+        }
+
+        var delta = unchecked((short)((m.WParam.ToInt64() >> 16) & 0xffff));
+        if (delta == 0)
+        {
+            return true;
+        }
+
+        AdjustPagePreviewZoom(delta > 0 ? PagePreviewZoomStepPercent : -PagePreviewZoomStepPercent);
+        return true;
+    }
+
     private Point CurrentPreviewScrollPosition()
     {
         if (previewScrollPanel is null)
@@ -236,6 +262,11 @@ public sealed partial class MainForm : Form
 
     private void PreviewSurface_MouseDown(object? sender, MouseEventArgs e)
     {
+        if (e.Button == MouseButtons.Left)
+        {
+            previewPanMoved = false;
+        }
+
         if (e.Button != MouseButtons.Left || !IsPreviewPannable())
         {
             return;
@@ -258,9 +289,110 @@ public sealed partial class MainForm : Form
         var currentCursor = Cursor.Position;
         var deltaX = currentCursor.X - previewPanStartCursor.X;
         var deltaY = currentCursor.Y - previewPanStartCursor.Y;
+        if (Math.Abs(deltaX) > SystemInformation.DragSize.Width / 2 || Math.Abs(deltaY) > SystemInformation.DragSize.Height / 2)
+        {
+            previewPanMoved = true;
+        }
+
         SetPreviewScrollPosition(new Point(
             Math.Max(0, previewPanStartScroll.X - deltaX),
             Math.Max(0, previewPanStartScroll.Y - deltaY)));
+    }
+
+    private void PreviewBox_MouseClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left
+            || previewPanMoved
+            || previewMode != PreviewMode.Page
+            || previewBox.Image is null
+            || !TryGetPagePreviewTagSlot(e.Location, out var tagSlotIndex))
+        {
+            return;
+        }
+
+        var rowsPerPage = renderer.GetRowsPerPage(currentLayout);
+        var rowIndex = previewPageIndex * rowsPerPage + tagSlotIndex;
+        if (rowIndex < 0 || rowIndex >= CurrentPrintableRowCount())
+        {
+            return;
+        }
+
+        if ((ModifierKeys & Keys.Control) == Keys.Control)
+        {
+            OpenLayoutDesigner(null, rowIndex);
+            return;
+        }
+
+        previewMode = PreviewMode.SingleTag;
+        previewPageIndex = rowIndex;
+        RedrawPreview();
+    }
+
+    private bool TryGetPagePreviewTagSlot(Point clientPoint, out int tagSlotIndex)
+    {
+        tagSlotIndex = -1;
+        if (previewBox.Image is null || previewBox.Width <= 0 || previewBox.Height <= 0)
+        {
+            return false;
+        }
+
+        var renderScale = PagePreviewRenderScale();
+        if (!float.IsFinite(renderScale) || renderScale <= 0)
+        {
+            return false;
+        }
+
+        var paperX = clientPoint.X / (float)previewBox.Width * previewBox.Image.Width / renderScale;
+        var paperY = clientPoint.Y / (float)previewBox.Height * previewBox.Image.Height / renderScale;
+        var tagStepX = currentLayout.Tag.Width + currentLayout.Spacing.Horizontal;
+        var tagStepY = currentLayout.Tag.Height + currentLayout.Spacing.Vertical;
+        if (tagStepX <= 0 || tagStepY <= 0)
+        {
+            return false;
+        }
+
+        var relativeX = paperX - currentLayout.Margin.Left;
+        var relativeY = paperY - currentLayout.Margin.Top;
+        if (relativeX < 0 || relativeY < 0)
+        {
+            return false;
+        }
+
+        var column = (int)Math.Floor(relativeX / tagStepX);
+        var row = (int)Math.Floor(relativeY / tagStepY);
+        var offsetX = relativeX - column * tagStepX;
+        var offsetY = relativeY - row * tagStepY;
+        if (offsetX < 0
+            || offsetY < 0
+            || offsetX > currentLayout.Tag.Width
+            || offsetY > currentLayout.Tag.Height)
+        {
+            return false;
+        }
+
+        var (columns, rows) = renderer.GetGrid(currentLayout);
+        if (column < 0 || column >= columns || row < 0 || row >= rows)
+        {
+            return false;
+        }
+
+        tagSlotIndex = row * columns + column;
+        return true;
+    }
+
+    private int CurrentPrintableRowCount()
+    {
+        currentPreset.Fields = fieldRows.ToList();
+        var scope = CurrentOutputScope();
+        var file = scope == OutputScopeType.SinglePdfAllCsv ? null : CurrentCsv();
+        var files = PrintableRowService.SelectFiles(scope, csvRows, file);
+        return PrintableRowService.PrintableRows(
+            currentPreset,
+            files,
+            CurrentPrintSortMode(),
+            SelectedPrintSortFieldId(),
+            CurrentPrintSortValueType(),
+            CurrentPrintTargetOrderColumnName()).Count;
     }
 
     private void PreviewSurface_MouseUp(object? sender, MouseEventArgs e)

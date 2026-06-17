@@ -57,7 +57,7 @@ public sealed partial class MainForm : Form
 
     private void OpenLayoutDesigner()
     {
-        OpenLayoutDesigner(null, 0);
+        OpenLayoutDesigner(null, CurrentDesignerInitialPreviewRowIndex());
     }
 
     private void OpenLayoutDesigner(List<CsvPreviewRowContext>? previewRows)
@@ -69,7 +69,11 @@ public sealed partial class MainForm : Form
     {
         var initialLayoutPath = layoutCombo.SelectedItem is FileComboItem selectedLayout ? selectedLayout.Path : "";
         currentPreset.Fields = fieldRows.ToList();
-        using var designer = new LayoutDesignerForm(fieldRows.ToList(), initialLayoutPath, previewRows ?? DesignerPreviewRows(), paths, initialPreviewRowIndex);
+        var designerPreviewRows = previewRows ?? DesignerPreviewRows(initialPreviewRowIndex);
+        var designerInitialPreviewRowIndex = designerPreviewRows.Count == 0
+            ? 0
+            : Math.Clamp(initialPreviewRowIndex, 0, designerPreviewRows.Count - 1);
+        using var designer = new LayoutDesignerForm(fieldRows.ToList(), initialLayoutPath, designerPreviewRows, paths, designerInitialPreviewRowIndex);
         designer.ShowDialog(this);
         if (designer.CsvSaved)
         {
@@ -81,11 +85,19 @@ public sealed partial class MainForm : Form
         ReloadLayoutCombo(designer.SavedLayoutPath);
     }
 
-    private List<CsvPreviewRowContext> DesignerPreviewRows()
+    private int CurrentDesignerInitialPreviewRowIndex()
+    {
+        return previewMode == PreviewMode.SingleTag ? Math.Max(0, previewPageIndex) : 0;
+    }
+
+    private List<CsvPreviewRowContext> DesignerPreviewRows(int requiredPreviewRowIndex = 0)
     {
         var scope = CurrentOutputScope();
         var files = PrintableRowService.SelectFiles(scope, csvRows, CurrentCsv());
-        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName(), settings.PreviewRowLimit);
+        var maxRows = settings.PreviewRowLimit <= 0
+            ? settings.PreviewRowLimit
+            : Math.Max(settings.PreviewRowLimit, requiredPreviewRowIndex + 1);
+        return PrintableRowService.PreviewRows(currentPreset, files, headerCheck.Checked, CurrentPrintSortMode(), SelectedPrintSortFieldId(), CurrentPrintSortValueType(), CurrentPrintTargetOrderColumnName(), maxRows);
     }
 
     private bool SavePreset()

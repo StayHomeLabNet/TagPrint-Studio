@@ -1,10 +1,19 @@
 # TagPrint Studio
 
-**TagPrint Studio v1.1.1** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
+**TagPrint Studio v1.1.2** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
 It supports CSV-based field mapping, layout editing, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## What's New in v1.1.2
+
+- Improved main preview navigation and Layout Designer handoff.
+  - `Ctrl + mouse wheel` zooms the main page preview even when another control has focus.
+  - Clicking a tag in page preview switches directly to that tag in single-tag preview.
+  - `Ctrl + click` on a tag in page preview opens Layout Designer with that tag's CSV row selected.
+  - Opening Layout Designer from single-tag preview now selects the currently displayed tag row.
+- Updated version metadata, README files, release notes, and English/Japanese manuals for v1.1.2.
 
 ## What's New in v1.1.1
 
@@ -177,7 +186,8 @@ QR Code generation uses the `QRCoder` NuGet package version `1.8.0`.
 ### Preview and Output
 
 - Page preview and high-resolution single-tag preview.
-- Page preview supports in-panel zoom controls and drag panning when zoomed.
+- Page preview supports in-panel zoom controls, `Ctrl + mouse wheel` zoom, and drag panning when zoomed.
+- In page preview, clicking a tag switches to that tag in single-tag preview, and `Ctrl + click` opens that tag in Layout Designer.
 - Previous/Next moves by page in page preview and by tag in single-tag preview.
 - Output all printable rows into one PDF.
 - Output separate PDF files per CSV.
@@ -343,4 +353,4 @@ bin/Release/net8.0-windows/win-x64/publish/
 
 ## Version
 
-Current version: **v1.1.1**
+Current version: **v1.1.2**

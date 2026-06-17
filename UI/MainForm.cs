@@ -7,7 +7,7 @@ using TagPrintStudio.Services;
 
 namespace TagPrintStudio.UI;
 
-public sealed partial class MainForm : Form
+public sealed partial class MainForm : Form, IMessageFilter
 {
     private static readonly Color PageBackColor = Color.FromArgb(244, 246, 248);
     private static readonly Color SurfaceColor = Color.White;
@@ -24,6 +24,7 @@ public sealed partial class MainForm : Form
     private const int PagePreviewZoomStepPercent = 10;
     private const int MinPagePreviewZoomPercent = -40;
     private const int MaxPagePreviewZoomPercent = 200;
+    private const int WmMouseWheel = 0x020A;
 
     private readonly IAppStorageLocationService appStorageLocationService;
     private readonly AppPaths paths;
@@ -50,6 +51,7 @@ public sealed partial class MainForm : Form
     private int previewPageIndex;
     private int pagePreviewZoomPercent;
     private bool previewPanning;
+    private bool previewPanMoved;
     private bool presetDirty;
     private bool loadingPreset;
     private bool loadingSettings;
@@ -158,6 +160,7 @@ public sealed partial class MainForm : Form
         outputOptionsFactory = new OutputOptionsFactory();
         settingsArchiveService = new SettingsArchiveService(paths);
         BuildUi();
+        Application.AddMessageFilter(this);
         fieldRows.ListChanged += (_, _) => RefreshPrintSortFieldCombo();
         AppIcon.Apply(this);
         LocalizationService.LanguageChanged += HandleLanguageChanged;
@@ -168,7 +171,11 @@ public sealed partial class MainForm : Form
             RunStartupBackupCleanupIfNeeded();
         }));
         FormClosing += MainForm_FormClosing;
-        FormClosed += (_, _) => LocalizationService.LanguageChanged -= HandleLanguageChanged;
+        FormClosed += (_, _) =>
+        {
+            Application.RemoveMessageFilter(this);
+            LocalizationService.LanguageChanged -= HandleLanguageChanged;
+        };
     }
 
     private void BuildUi()
@@ -352,6 +359,7 @@ public sealed partial class MainForm : Form
         previewViewportHost.MouseUp += PreviewSurface_MouseUp;
         previewViewportHost.MouseLeave += PreviewSurface_MouseLeave;
         previewBox.MouseDown += PreviewSurface_MouseDown;
+        previewBox.MouseClick += PreviewBox_MouseClick;
         previewBox.MouseMove += PreviewSurface_MouseMove;
         previewBox.MouseUp += PreviewSurface_MouseUp;
         previewBox.MouseLeave += PreviewSurface_MouseLeave;

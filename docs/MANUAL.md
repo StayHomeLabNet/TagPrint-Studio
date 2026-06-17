@@ -1,6 +1,6 @@
 # TagPrint Studio User Manual
 
-Target version: **TagPrint Studio v1.1.1**
+Target version: **TagPrint Studio v1.1.2**
 
 TagPrint Studio is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
@@ -358,9 +358,16 @@ Single-tag preview is rendered at a higher resolution based on the preview area 
 Page preview zoom:
 
 - The bottom-right of the page preview includes **Expand**, **Normal**, and **Shrink** controls.
+- `Ctrl + mouse wheel` zooms the page preview while the mouse is over the preview area.
 - Zoomed page preview rerenders at a higher internal resolution for clearer close inspection.
 - When the zoomed page exceeds the viewport, vertical and horizontal scroll bars appear.
 - The zoomed page can also be moved by hand-pan dragging with the mouse.
+
+Page preview tag shortcuts:
+
+- Click a tag in page preview to switch directly to that tag in single-tag preview.
+- `Ctrl + click` a tag in page preview to open Layout Designer with that tag's CSV row selected.
+- If Layout Designer is opened while single-tag preview is active, the currently displayed tag row is selected in the designer.
 
 Preview status text shows:
 
@@ -614,7 +621,7 @@ Japanese IME input is supported during direct text editing.
 
 ### 9.6 Preview Row and CSV Editing
 
-When opened from the main window with CSV data loaded, the Layout Designer receives preview rows based on the current output scope, print filters, and selected CSV state.
+When opened from the main window with CSV data loaded, the Layout Designer receives preview rows based on the current output scope, print filters, and selected CSV state. If it is opened from single-tag preview or by `Ctrl + click` on a page-preview tag, the matching preview row is selected automatically.
 
 Controls above the canvas:
 
@@ -1031,38 +1038,40 @@ Before release:
 
 1. Start the app.
 2. Confirm Japanese and English UI.
-3. Confirm the About dialog shows v1.1.1.
+3. Confirm the About dialog shows v1.1.2.
 4. Load sample CSV and folder CSV.
 5. Confirm UTF-8 BOM, UTF-16 LE BOM, UTF-16 BE BOM, valid UTF-8, and Shift_JIS CSV behavior where possible.
 6. Confirm delimiter detection for comma, tab, and semicolon files.
 7. Confirm blank CSV rows are preserved and are not printed.
 8. Confirm automatic CSV field mapping.
 9. Check page preview.
-10. Check single-tag preview and previous/next tag movement.
-11. Save PDF.
-12. Save PNG.
-13. Cancel PDF/PNG output into a folder with existing output files and confirm existing files are restored.
-14. Direct print or print preview.
-15. Confirm print target dialog and search.
-16. Open Layout Designer.
-17. Move, resize, lock, hide, and arrange elements.
-18. Use Expand/Normal/Shrink canvas controls.
-19. Edit text on canvas with `Enter`, `Shift + Enter`, and `Esc`.
-20. Confirm canvas text edit context menu actions: lowercase, uppercase, and title-style conversion.
-21. Confirm Undo/Redo can revert committed canvas text edits.
-22. Save layout and reload.
-23. Test Code128, EAN-13/JAN-13, and QR Code.
-24. Use Tag Finder to save `true`.
-25. Use Tag Finder print quantity to create a queue CSV.
-26. Use Tag Finder **Clear All Print Targets** and confirm the warning, target row count, queue CSV update, and **Show True Only** empty-state refresh.
-27. Delete queue CSV files.
-28. Run CSV Duplicate Cleanup preview and apply on test data.
-29. Run CSV Merge on test data.
-30. Run Backup File Cleanup preview and cleanup on disposable test backups.
-31. Backup settings and confirm existing backup ZIP is not lost on failure scenarios where possible.
-32. Import settings backup.
-33. Open settings file location and app data location.
-34. Confirm crash logs can be written by `CrashLogService` tests.
-35. Confirm the release ZIP/package does not include local `.vs` folders such as `docs/.vs`.
-36. Run automated tests.
-37. Build and publish the `net8.0-windows` release.
+10. Check `Ctrl + mouse wheel` page-preview zoom.
+11. Check page-preview tag click switches to single-tag preview, and `Ctrl + click` opens Layout Designer on the matching row.
+12. Check single-tag preview and previous/next tag movement.
+13. Save PDF.
+14. Save PNG.
+15. Cancel PDF/PNG output into a folder with existing output files and confirm existing files are restored.
+16. Direct print or print preview.
+17. Confirm print target dialog and search.
+18. Open Layout Designer.
+19. Move, resize, lock, hide, and arrange elements.
+20. Use Expand/Normal/Shrink canvas controls.
+21. Edit text on canvas with `Enter`, `Shift + Enter`, and `Esc`.
+22. Confirm canvas text edit context menu actions: lowercase, uppercase, and title-style conversion.
+23. Confirm Undo/Redo can revert committed canvas text edits.
+24. Save layout and reload.
+25. Test Code128, EAN-13/JAN-13, and QR Code.
+26. Use Tag Finder to save `true`.
+27. Use Tag Finder print quantity to create a queue CSV.
+28. Use Tag Finder **Clear All Print Targets** and confirm the warning, target row count, queue CSV update, and **Show True Only** empty-state refresh.
+29. Delete queue CSV files.
+30. Run CSV Duplicate Cleanup preview and apply on test data.
+31. Run CSV Merge on test data.
+32. Run Backup File Cleanup preview and cleanup on disposable test backups.
+33. Backup settings and confirm existing backup ZIP is not lost on failure scenarios where possible.
+34. Import settings backup.
+35. Open settings file location and app data location.
+36. Confirm crash logs can be written by `CrashLogService` tests.
+37. Confirm the release ZIP/package does not include local `.vs` folders such as `docs/.vs`.
+38. Run automated tests.
+39. Build and publish the `net8.0-windows` release.

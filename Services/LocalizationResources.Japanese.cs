@@ -113,7 +113,7 @@ public static partial class LocalizationService
                     ["main.menu.language"] = "言語",
                     ["main.menu.about"] = "バージョン情報",
                     ["main.about.title"] = "TagPrint Studio について",
-                    ["main.about.body"] = "TagPrint Studio v1.1.1\n\nCSVベースでタグのレイアウト、プレビュー、出力、印刷を行います。",
+                    ["main.about.body"] = "TagPrint Studio v1.1.2\n\nCSVベースでタグのレイアウト、プレビュー、出力、印刷を行います。",
                     ["main.message.presetSaved"] = "プリセットを保存しました。",
                     ["main.message.presetCreated"] = "プリセットを作成しました。",
                     ["main.message.presetDuplicated"] = "プリセットを複製しました。",
