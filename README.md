@@ -1,4 +1,30 @@
-# TagPrint Studio
+# 🏷️ TagPrint Studio
+
+## Design, preview, export, and print price tags and product labels from CSV data
+
+**TagPrint Studio is a Windows desktop application for creating price tags and product labels from CSV data,  
+with layout editing, PDF/PNG export, direct printing, barcode/QR code support, and Japanese/English UI.**
+
+[English](README.md) | [日本語](README.ja.md)
+
+[What's New](#whats-new-in-v112) ・ [Screenshots](#screenshots) ・ [Main Features](#main-features) ・ [Sample CSV](#sample-csv) ・ [Documentation](#documentation) ・ [Build](#build) ・ [Version](#version)
+
+![version](https://img.shields.io/badge/version-1.1.2-blue)
+![platform](https://img.shields.io/badge/platform-Windows-orange)
+![app](https://img.shields.io/badge/app-WinForms-purple)
+![framework](https://img.shields.io/badge/.NET-8.0%20Windows-512BD4)
+![files](https://img.shields.io/badge/CSV-supported-brightgreen)
+![output](https://img.shields.io/badge/output-PDF%20%2F%20PNG-lightgrey)
+![barcode](https://img.shields.io/badge/barcode-Code128%20%7C%20EAN--13%20%7C%20QR-blueviolet)
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20StayHomeLabNet-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white)](https://ko-fi.com/stayhomelabnet)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20StayHomeLabNet-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/stayhomelabnet)
+
+**If TagPrint Studio is useful to you, please consider supporting the project.**
+
+---
+
+## Overview
 
 **TagPrint Studio v1.1.2** is a Windows desktop application for designing, previewing, exporting, and printing price tags and product labels from CSV data.
 
