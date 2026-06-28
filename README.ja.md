@@ -1,4 +1,30 @@
-﻿# TagPrint Studio
+# 🏷️ TagPrint Studio
+
+## CSV データから価格タグや商品ラベルを作成・プレビュー・保存・印刷できるWindowsデスクトップアプリ
+
+**TagPrint Studio は、CSV データをもとに価格タグや商品ラベルを作成し、  
+レイアウト編集、PDF/PNG 保存、直接印刷、バーコード/QR コード、日本語/英語 UI に対応する Windows デスクトップアプリです。**
+
+[English](README.md) | [日本語](README.ja.md)
+
+[更新情報](#v112-の主な更新) ・ [画面イメージ](#画面イメージ) ・ [主な機能](#主な機能) ・ [サンプル CSV](#サンプル-csv) ・ [ドキュメント](#ドキュメント) ・ [ビルド](#ビルド) ・ [バージョン](#バージョン)
+
+![version](https://img.shields.io/badge/version-1.1.2-blue)
+![platform](https://img.shields.io/badge/platform-Windows-orange)
+![app](https://img.shields.io/badge/app-WinForms-purple)
+![framework](https://img.shields.io/badge/.NET-8.0%20Windows-512BD4)
+![files](https://img.shields.io/badge/CSV-supported-brightgreen)
+![output](https://img.shields.io/badge/output-PDF%20%2F%20PNG-lightgrey)
+![barcode](https://img.shields.io/badge/barcode-Code128%20%7C%20EAN--13%20%7C%20QR-blueviolet)
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20StayHomeLabNet-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white)](https://ko-fi.com/stayhomelabnet)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20StayHomeLabNet-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/stayhomelabnet)
+
+**TagPrint Studio が役に立った場合は、プロジェクトのサポートをご検討ください。**
+
+---
+
+## 概要
 
 **TagPrint Studio v1.1.2** は、CSV データをもとに価格タグや商品ラベルを作成し、プレビュー、PDF/PNG 保存、直接印刷まで行える Windows デスクトップアプリです。
 
