@@ -95,6 +95,30 @@ public sealed partial class PreviewRenderService(IUnitConversionService units) :
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
     }
 
+    private static Font CreateSafeFont(string? family, float size, FontStyle style, GraphicsUnit unit)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(family))
+            {
+                return new Font(family, size, style, unit);
+            }
+        }
+        catch
+        {
+            // Missing fonts are common when layouts move between PCs.
+        }
+
+        try
+        {
+            return new Font("Yu Gothic UI", size, style, unit);
+        }
+        catch
+        {
+            return new Font(FontFamily.GenericSansSerif, size, style, unit);
+        }
+    }
+
     private static void DrawTag(Graphics graphics, LayoutFile layout, Dictionary<string, string> rowData, RectangleF tagRect, float scale, RenderLayerOptions layerOptions)
     {
         foreach (var element in layout.Elements.Where(e => e.Visible).OrderBy(e => e.ZIndex))

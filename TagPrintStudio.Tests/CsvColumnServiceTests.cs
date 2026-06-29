@@ -62,7 +62,9 @@ public sealed partial class ServiceTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
-        Assert.Contains("different header column counts", exception.Message);
+        Assert.True(
+            exception.Message.Contains("different header column counts", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("ヘッダー列数", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
         Assert.Equal(["Code", "Name", "Price"], files[1].HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
@@ -81,7 +83,9 @@ public sealed partial class ServiceTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
-        Assert.Contains("different column counts", exception.Message);
+        Assert.True(
+            exception.Message.Contains("different column counts", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("列数", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(["Code", "Name"], file.HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(path, Encoding.UTF8));
     }
@@ -102,7 +106,9 @@ public sealed partial class ServiceTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
 
-        Assert.Contains("different header names", exception.Message);
+        Assert.True(
+            exception.Message.Contains("different header names", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("ヘッダー名", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(["Code", "Name"], files[0].HeaderRow!);
         Assert.Equal(["ItemCode", "Stock"], files[1].HeaderRow!);
         Assert.DoesNotContain("FontSize", File.ReadAllText(firstPath, Encoding.UTF8));
@@ -145,6 +151,25 @@ public sealed partial class ServiceTests
         Assert.Equal("Code,Name\r\nB200,Banana\r\n", File.ReadAllText(secondPath, Encoding.UTF8));
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "second.csv.bak-*"));
+    }
+
+    [Fact]
+    public void CsvColumnService_AddColumnToAllFiles_RejectsExternallyChangedCsvBeforeWriting()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Code,Name\r\nA100,Apple\r\n", Encoding.UTF8);
+        var file = CsvFile(path, ["Code", "Name"], ["A100", "Apple"]);
+        var files = new List<CsvFileItem> { file };
+        File.WriteAllText(path, "Code,Name\r\nA100,Edited\r\n", Encoding.UTF8);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            new CsvColumnService().AddColumnToAllFiles(files, "FontSize", hasHeaderRow: true));
+
+        Assert.Contains("変更", ex.Message);
+        Assert.Equal(["Code", "Name"], file.HeaderRow!);
+        Assert.Equal(["A100", "Apple"], file.Rows[0]);
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "*.bak-*"));
+        Assert.Equal("Code,Name\r\nA100,Edited\r\n", File.ReadAllText(path, Encoding.UTF8));
     }
 
 }

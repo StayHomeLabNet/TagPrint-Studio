@@ -330,12 +330,12 @@ public sealed class DuplicateCleanupService : IDuplicateCleanupService
         var field = preset.Fields.FirstOrDefault(f => string.Equals(f.FieldId, fieldId, StringComparison.Ordinal));
         if (field is null)
         {
-            throw new InvalidOperationException($"Field not found: {fieldId}");
+            throw new InvalidOperationException(LocalizationService.T("duplicateCleanup.issue.fieldNotFound", fieldId));
         }
 
         if (field.ColumnIndex is null || field.ColumnIndex < 0)
         {
-            throw new InvalidOperationException($"Field is not mapped to a CSV column: {fieldId}");
+            throw new InvalidOperationException(LocalizationService.T("duplicateCleanup.issue.fieldNotMapped", fieldId));
         }
 
         return field;

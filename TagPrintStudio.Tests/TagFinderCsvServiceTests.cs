@@ -96,6 +96,29 @@ public sealed partial class ServiceTests
         Assert.Single(Directory.GetFiles(temp.DirectoryPath, "first.csv.bak-*"));
     }
 
+    [Fact]
+    public void TagFinderCsvService_SaveFlags_RejectsExternallyChangedCsvBeforeWriting()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Code,Name\r\nA100,Apple\r\n", Encoding.UTF8);
+        var file = CsvFile(path, ["Code", "Name"], ["A100", "Apple"]);
+        File.WriteAllText(path, "Code,Name\r\nA100,Edited\r\n", Encoding.UTF8);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            new TagFinderCsvService().SaveFlags(
+                [file],
+                [new TagFinderSaveSelection { File = file, RowIndex = 0, Checked = true }],
+                "tagPrint",
+                "tagPrintOrder",
+                hasHeaderRow: true));
+
+        Assert.Contains("変更", ex.Message);
+        Assert.Equal(["Code", "Name"], file.HeaderRow!);
+        Assert.Equal(["A100", "Apple"], file.Rows[0]);
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "*.bak-*"));
+        Assert.Equal("Code,Name\r\nA100,Edited\r\n", File.ReadAllText(path, Encoding.UTF8));
+    }
+
 
     [Fact]
     public void TagFinderCsvService_SaveFlags_AssignsNextOrderOnlyForNewlyCheckedRows()
@@ -344,7 +367,7 @@ public sealed partial class ServiceTests
                 "tagPrintOrder",
                 hasHeaderRow: false));
 
-        Assert.Equal("Tag Finder requires CSV files with a header row.", ex.Message);
+        Assert.Contains("ヘッダー", ex.Message);
         Assert.Null(file.HeaderRow);
         Assert.Equal(["A100", "Apple"], file.Rows[0]);
     }
@@ -398,7 +421,7 @@ public sealed partial class ServiceTests
                 "tagPrintOrder",
                 hasHeaderRow: false));
 
-        Assert.Equal("Tag Finder requires CSV files with a header row.", ex.Message);
+        Assert.Contains("ヘッダー", ex.Message);
         Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "print_queue_*.csv"));
         Assert.Null(file.HeaderRow);
         Assert.Equal(["A100", "Apple"], file.Rows[0]);
@@ -470,6 +493,28 @@ public sealed partial class ServiceTests
 
         var sourceLines = File.ReadAllLines(path, Encoding.UTF8);
         Assert.Equal("", sourceLines[2]);
+    }
+
+    [Fact]
+    public void TagFinderCsvService_CreatePrintQueueCsv_RejectsExternallyChangedCsvBeforeWritingQueue()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.WriteText("items.csv", "Code,tagPrint,tagPrintOrder\r\nA,false,\r\n", Encoding.UTF8);
+        var file = CsvFile(path, ["Code", "tagPrint", "tagPrintOrder"], ["A", "false", ""]);
+        File.WriteAllText(path, "Code,tagPrint,tagPrintOrder\r\nA,true,9\r\n", Encoding.UTF8);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            new TagFinderCsvService().CreatePrintQueueCsv(
+                [new TagFinderQueueSource { File = file, RowIndex = 0 }],
+                additionalQuantity: 1,
+                "tagPrint",
+                "tagPrintOrder",
+                hasHeaderRow: true));
+
+        Assert.Contains("変更", ex.Message);
+        Assert.Equal(["A", "false", ""], file.Rows[0]);
+        Assert.Empty(Directory.GetFiles(temp.DirectoryPath, "print_queue_*.csv"));
+        Assert.Equal("Code,tagPrint,tagPrintOrder\r\nA,true,9\r\n", File.ReadAllText(path, Encoding.UTF8));
     }
 
 }

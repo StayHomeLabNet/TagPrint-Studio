@@ -1551,6 +1551,7 @@ public sealed partial class ServiceTests
         FileName = Path.GetFileName(path),
         FilePath = path,
         EncodingName = "UTF-8",
+        Snapshot = File.Exists(path) ? CsvFileUtility.CreateSnapshot(path) : new CsvFileSnapshot(),
         Status = CsvFileStatus.Ok,
         HeaderRow = header,
         Rows = rows.ToList(),

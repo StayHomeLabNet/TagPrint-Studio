@@ -85,17 +85,20 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
 
         if (additionalQuantity <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(additionalQuantity), additionalQuantity, "Additional print quantity must be greater than zero.");
+            throw new ArgumentOutOfRangeException(
+                nameof(additionalQuantity),
+                additionalQuantity,
+                LocalizationService.T("tagFinder.issue.additionalQuantityPositive"));
         }
 
         if (targets.Count == 0)
         {
-            throw new InvalidOperationException("No target rows were selected.");
+            throw new InvalidOperationException(LocalizationService.T("tagFinder.issue.noTargetRows"));
         }
 
         var firstFile = targets[0].File;
         var sourceFolder = Path.GetDirectoryName(firstFile.FilePath)
-            ?? throw new InvalidOperationException("Could not resolve the source CSV folder.");
+            ?? throw new InvalidOperationException(LocalizationService.T("tagFinder.issue.sourceFolderNotResolved"));
         var resolvedOrderColumnName = OrderColumnName(flagColumnName, orderColumnName);
         var sourceFiles = targets
             .Select(target => target.File)
@@ -258,6 +261,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
         string? queueContent,
         Encoding? queueEncoding)
     {
+        EnsureCsvFilesUnchanged(changedFiles);
         var queueWritten = false;
 
         try
@@ -290,6 +294,18 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
             var rollbackErrors = RollBackCsvWrites(changedFiles, queuePath, queueWritten);
             var message = BuildTransactionalSaveFailureMessage(changedFiles, ex, rollbackErrors);
             throw new IOException(message, ex);
+        }
+    }
+
+    private static void EnsureCsvFilesUnchanged(IEnumerable<CsvWritePlan> changedFiles)
+    {
+        foreach (var plan in changedFiles)
+        {
+            if (!CsvFileUtility.SnapshotMatches(plan.Original.Snapshot, plan.Original.FilePath))
+            {
+                throw new InvalidOperationException(
+                    LocalizationService.T("tagFinder.issue.fileChangedAfterLoad", Path.GetFileName(plan.Original.FilePath)));
+            }
         }
     }
 
@@ -399,7 +415,7 @@ public sealed class TagFinderCsvService : ITagFinderCsvService
     {
         if (!hasHeaderRow)
         {
-            throw new InvalidOperationException("Tag Finder requires CSV files with a header row.");
+            throw new InvalidOperationException(LocalizationService.T("tagFinder.issue.headerRequired"));
         }
     }
 

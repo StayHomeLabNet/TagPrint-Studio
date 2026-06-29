@@ -112,6 +112,84 @@ public sealed partial class ServiceTests
     }
 
     [Fact]
+    public void PreviewRenderer_RendersTextWithMissingFontUsingFallback()
+    {
+        var renderer = new PreviewRenderService(new UnitConversionService());
+        var layout = Layout(tagWidth: 40, tagHeight: 30);
+        layout.Elements.Add(new LayoutElement
+        {
+            ElementId = "text",
+            Name = "Text",
+            ElementType = LayoutElementType.StaticText,
+            Text = "Fallback",
+            FontFamily = "FontThatShouldNotExist_TagPrintStudio_12345",
+            X = 2,
+            Y = 2,
+            Width = 30,
+            Height = 10,
+            Visible = true
+        });
+
+        using var bitmap = renderer.RenderSingleTag(layout, Preset(Field("name", "Name", 0)), new Dictionary<string, string>(), scale: 2f);
+
+        Assert.True(bitmap.Width > 0);
+        Assert.True(bitmap.Height > 0);
+    }
+
+    [Fact]
+    public void PreflightCheck_DoesNotTreatUnusedPriceLikeFieldNameAsPriceRequired()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(Field("old_price", "old_price", 0));
+        var layout = Layout(tagWidth: 40, tagHeight: 30);
+        layout.Elements.Add(new LayoutElement
+        {
+            ElementId = "name",
+            Name = "Name",
+            ElementType = LayoutElementType.FieldText,
+            FieldId = "name",
+            X = 2,
+            Y = 2,
+            Width = 20,
+            Height = 10,
+            Visible = true
+        });
+        var csv = Csv("items.csv", [""]);
+
+        var result = service.Check(layout, preset, [csv]);
+
+        Assert.False(result.HasIssues);
+    }
+
+    [Fact]
+    public void PreflightCheck_ReportsBlankVisiblePriceValueField()
+    {
+        var service = new PreflightCheckService();
+        var preset = Preset(Field("price", "Price", 0));
+        var layout = Layout(tagWidth: 40, tagHeight: 30);
+        layout.Elements.Add(new LayoutElement
+        {
+            ElementId = "price",
+            Name = "Price",
+            ElementType = LayoutElementType.PriceValue,
+            FieldId = "price",
+            X = 2,
+            Y = 2,
+            Width = 20,
+            Height = 10,
+            Visible = true
+        });
+        var csv = Csv("items.csv", [""]);
+
+        var result = service.Check(layout, preset, [csv]);
+
+        Assert.True(result.HasBlockingIssues);
+        Assert.Contains(result.Errors, issue =>
+            issue.Contains("価格", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("Price", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void CsvLoader_RejectsOversizedCsvBeforeReadingContent()
     {
         using var temp = new TempDirectory();

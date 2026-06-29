@@ -53,7 +53,7 @@ public sealed class PreflightCheckService : IPreflightCheckService
                 var csvRowNumber = CsvRowNumber(rowIndex, hasHeaderRow);
 
                 errors.AddRange(CheckRequiredFields(preset, file, csvRowNumber, row));
-                errors.AddRange(CheckPriceFields(preset, file, csvRowNumber, row));
+                errors.AddRange(CheckPriceFields(layout, preset, file, csvRowNumber, row));
                 errors.AddRange(CheckBarcodeValues(layout, preset, file, csvRowNumber, row));
                 warnings.AddRange(CheckPrintTargetOrder(preset, file, csvRowNumber, row, printSortMode, printTargetOrderColumnName));
             }
@@ -374,9 +374,20 @@ public sealed class PreflightCheckService : IPreflightCheckService
         }
     }
 
-    private static IEnumerable<string> CheckPriceFields(PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
+    private static IEnumerable<string> CheckPriceFields(LayoutFile layout, PresetFile preset, CsvFileItem file, int csvRowNumber, string[] row)
     {
-        foreach (var field in preset.Fields.Where(field => field.Enabled && IsPriceField(field)))
+        var priceFieldIds = VisibleElements(layout)
+            .Where(element => element.ElementType == LayoutElementType.PriceValue)
+            .Select(element => element.FieldId)
+            .Where(fieldId => !string.IsNullOrWhiteSpace(fieldId))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (priceFieldIds.Count == 0)
+        {
+            yield break;
+        }
+
+        foreach (var field in preset.Fields.Where(field => field.Enabled && priceFieldIds.Contains(field.FieldId)))
         {
             var value = FieldValue(field, row);
             if (!string.IsNullOrWhiteSpace(value)) continue;
@@ -384,18 +395,6 @@ public sealed class PreflightCheckService : IPreflightCheckService
             var label = string.IsNullOrWhiteSpace(field.DisplayName) ? field.FieldId : field.DisplayName;
             yield return LocalizationService.T("preflight.issue.priceEmpty", file.FileName, csvRowNumber, label);
         }
-    }
-
-    private static bool IsPriceField(FieldDefinition field)
-    {
-        var text = Normalize(field.FieldId + " " + field.DisplayName);
-        return text.Contains("price", StringComparison.Ordinal) ||
-               text.Contains("amount", StringComparison.Ordinal) ||
-               text.Contains("cost", StringComparison.Ordinal) ||
-               text.Contains("価格", StringComparison.Ordinal) ||
-               text.Contains("値段", StringComparison.Ordinal) ||
-               text.Contains("金額", StringComparison.Ordinal) ||
-               text.Contains("単価", StringComparison.Ordinal);
     }
 
     private static string FieldValue(FieldDefinition field, string[] row)
@@ -528,10 +527,6 @@ public sealed class PreflightCheckService : IPreflightCheckService
             : Path.GetFullPath(Path.Combine(layoutDirectory, imagePath));
     }
 
-    private static string Normalize(string text)
-    {
-        return text.Normalize(System.Text.NormalizationForm.FormKC).ToLowerInvariant();
-    }
 }
 
 public sealed class PreflightCheckResult

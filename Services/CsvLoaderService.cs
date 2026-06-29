@@ -488,7 +488,7 @@ public sealed class CsvLoaderService : ICsvLoaderService
 
         if (inQuotes)
         {
-            throw new FormatException($"CSV parse error at line {recordStartLine}: malformed quoted field.");
+            throw new FormatException(LocalizationService.T("csvLoader.issue.parseError", recordStartLine));
         }
 
         if (recordHadCharacters || row.Count > 0 || field.Length > 0)

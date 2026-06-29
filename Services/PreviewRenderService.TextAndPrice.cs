@@ -13,7 +13,7 @@ public sealed partial class PreviewRenderService
 
     private static void DrawText(Graphics graphics, LayoutElement element, string text, RectangleF rect, float scale, double fontSize)
     {
-        using var font = new Font(element.FontFamily, (float)(fontSize * scale * 0.72), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+        using var font = CreateSafeFont(element.FontFamily, (float)(fontSize * scale * 0.72), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
         using var brush = new SolidBrush(ParseColor(element.TextColor, Color.Black));
         using var format = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
         format.Alignment = element.TextAlign switch
@@ -60,8 +60,8 @@ public sealed partial class PreviewRenderService
             return;
         }
 
-        using var wholeFont = new Font(element.FontFamily, (float)(fontSize * scale * 0.72), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
-        using var fractionFont = new Font(
+        using var wholeFont = CreateSafeFont(element.FontFamily, (float)(fontSize * scale * 0.72), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+        using var fractionFont = CreateSafeFont(
             element.FontFamily,
             Math.Max(1f, (float)(fontSize * scale * 0.72 * element.FractionFontScale)),
             element.Bold ? FontStyle.Bold : FontStyle.Regular,

@@ -29,13 +29,13 @@ public sealed class CsvColumnService : ICsvColumnService
     {
         if (!hasHeaderRow)
         {
-            throw new InvalidOperationException("CSV column addition requires header rows.");
+            throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.headerRequired"));
         }
 
         var normalizedName = columnName.Trim();
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
-            throw new InvalidOperationException("Column name is required.");
+            throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.columnNameRequired"));
         }
 
         var targets = csvFiles
@@ -44,26 +44,26 @@ public sealed class CsvColumnService : ICsvColumnService
             .ToList();
         if (targets.Count == 0)
         {
-            throw new InvalidOperationException("No CSV files are available.");
+            throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.noCsvFiles"));
         }
 
         foreach (var file in targets)
         {
             if (!File.Exists(file.FilePath))
             {
-                throw new FileNotFoundException("CSV file was not found.", file.FilePath);
+                throw new FileNotFoundException(LocalizationService.T("csvColumn.issue.fileNotFound"), file.FilePath);
             }
 
             var header = file.HeaderRow ?? [];
             if (file.Status == Enums.CsvFileStatus.ColumnMismatch
                 || (header.Length > 0 && file.Rows.Any(row => !CsvFileUtility.IsBlankRow(row) && row.Length != header.Length)))
             {
-                throw new InvalidOperationException("Cannot add a column while CSV files have different column counts.");
+                throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.differentColumnCounts"));
             }
 
             if (CsvHeaderResolver.FindIndex(header, normalizedName) >= 0)
             {
-                throw new InvalidOperationException($"Column already exists: {normalizedName}");
+                throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.columnAlreadyExists", normalizedName));
             }
         }
 
@@ -71,12 +71,12 @@ public sealed class CsvColumnService : ICsvColumnService
         var columnIndex = firstHeader.Length;
         if (targets.Any(file => (file.HeaderRow ?? []).Length != columnIndex))
         {
-            throw new InvalidOperationException("Cannot add a column when loaded CSV files have different header column counts.");
+            throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.differentHeaderColumnCounts"));
         }
 
         if (targets.Any(file => !HeadersMatch(firstHeader, file.HeaderRow ?? [])))
         {
-            throw new InvalidOperationException("Cannot add a column when loaded CSV files have different header names.");
+            throw new InvalidOperationException(LocalizationService.T("csvColumn.issue.differentHeaderNames"));
         }
 
         var writePlans = targets
@@ -141,6 +141,8 @@ public sealed class CsvColumnService : ICsvColumnService
 
     private void WriteChangedCsvFilesTransactionally(List<CsvColumnWritePlan> changedFiles, bool hasHeaderRow)
     {
+        EnsureCsvFilesUnchanged(changedFiles);
+
         try
         {
             foreach (var plan in changedFiles)
@@ -162,6 +164,18 @@ public sealed class CsvColumnService : ICsvColumnService
         {
             var rollbackErrors = RollBackCsvWrites(changedFiles);
             throw new IOException(BuildTransactionalSaveFailureMessage(changedFiles, ex, rollbackErrors), ex);
+        }
+    }
+
+    private static void EnsureCsvFilesUnchanged(IEnumerable<CsvColumnWritePlan> changedFiles)
+    {
+        foreach (var plan in changedFiles)
+        {
+            if (!CsvFileUtility.SnapshotMatches(plan.Original.Snapshot, plan.Original.FilePath))
+            {
+                throw new InvalidOperationException(
+                    LocalizationService.T("csvColumn.issue.fileChangedAfterLoad", Path.GetFileName(plan.Original.FilePath)));
+            }
         }
     }
 

@@ -52,7 +52,7 @@ public sealed partial class PreviewRenderService
         if (!element.BarcodeShowText || textHeight <= 0) return;
 
         var textRect = new RectangleF(rect.Left, barcodeRect.Bottom, rect.Width, textHeight);
-        using var font = new Font(element.FontFamily, Math.Max(1f, (float)(element.FontSize * scale * 0.72)), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+        using var font = CreateSafeFont(element.FontFamily, Math.Max(1f, (float)(element.FontSize * scale * 0.72)), element.Bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
         graphics.DrawString(ean13, font, brush, textRect, format);
     }

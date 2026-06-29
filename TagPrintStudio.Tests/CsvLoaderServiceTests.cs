@@ -237,7 +237,7 @@ public sealed partial class ServiceTests
         var file = Assert.Single(result.Files);
 
         Assert.Equal(CsvFileStatus.LoadFailed, file.Status);
-        Assert.Contains("line", file.Note, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("2", file.Note, StringComparison.OrdinalIgnoreCase);
     }
 
 }
