@@ -7,7 +7,7 @@
 
 [English](README.md) | [日本語](README.ja.md)
 
-[更新情報](#v112-の主な更新) ・ [画面イメージ](#画面イメージ) ・ [主な機能](#主な機能) ・ [サンプル CSV](#サンプル-csv) ・ [ドキュメント](#ドキュメント) ・ [ビルド](#ビルド) ・ [バージョン](#バージョン)
+[ダウンロード](#ダウンロードと起動) ・ [更新情報](#v112-の主な更新) ・ [画面イメージ](#画面イメージ) ・ [主な機能](#主な機能) ・ [サンプル CSV](#サンプル-csv) ・ [ドキュメント](#ドキュメント) ・ [ビルド](#ビルド) ・ [バージョン](#バージョン)
 
 ![version](https://img.shields.io/badge/version-1.1.2-blue)
 ![platform](https://img.shields.io/badge/platform-Windows-orange)
@@ -31,6 +31,14 @@
 CSV フィールドの自動マッピング、レイアウト編集、PDF 描画方式の選択、印刷順の制御、印刷対象の確認、タグ検索、印刷キュー CSV 作成、CSV 重複整理、CSV マージ、バーコード/QR コード、日本語/英語 UI、設定バックアップ/インポート、バックアップファイル整理、クラッシュログ、アプリデータ保存場所の変更に対応しています。
 
 ![サンプルタグ](docs/images/SampleTag.png)
+
+## ダウンロードと起動
+
+1. [最新の GitHub Release](https://github.com/StayHomeLabNet/TagPrint-Studio/releases/latest) を開きます。
+2. **Assets** から Windows x64 向けの `TagPrintStudio.exe` をダウンロードします。
+3. ダウンロードした `TagPrintStudio.exe` をダブルクリックして起動します。
+
+配布版は自己完結型のため、.NET ランタイムを別途インストールする必要はありません。公式リポジトリの GitHub Release からダウンロードしてください。
 
 ## v1.1.2 の主な更新
 
@@ -325,8 +333,7 @@ TagPrint Studio/
 UI/MainForm*.cs
 UI/LayoutDesignerForm*.cs
 UI/TagFinderDialog.cs
-UI/CsvDuplicateCleanupDialog.cs
-UI/CsvMergeDialog.cs
+UI/DuplicateCleanupDialog*.cs
 UI/BackupCleanupDialog.cs
 Services/CsvLoaderService.cs
 Services/OutputService.cs
@@ -364,7 +371,7 @@ dotnet test
 Windows x64 向け自己完結 single-file 実行ファイルとして publish:
 
 ```powershell
-dotnet publish "TagPrintStudio.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:UseAppHost=true
+dotnet publish "TagPrintStudio.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true
 ```
 
 生成先:
@@ -378,6 +385,7 @@ bin/Release/net8.0-windows/win-x64/publish/
 ```xml
 <PackageReference Include="PDFsharp" Version="6.2.2" />
 <PackageReference Include="QRCoder" Version="1.8.0" />
+<PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
 ```
 
 ## バージョン

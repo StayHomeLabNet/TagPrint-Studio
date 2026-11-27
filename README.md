@@ -7,7 +7,7 @@ with layout editing, PDF/PNG export, direct printing, barcode/QR code support, a
 
 [English](README.md) | [日本語](README.ja.md)
 
-[What's New](#whats-new-in-v112) ・ [Screenshots](#screenshots) ・ [Main Features](#main-features) ・ [Sample CSV](#sample-csv) ・ [Documentation](#documentation) ・ [Build](#build) ・ [Version](#version)
+[Download](#download-and-run) ・ [What's New](#whats-new-in-v112) ・ [Screenshots](#screenshots) ・ [Main Features](#main-features) ・ [Sample CSV](#sample-csv) ・ [Documentation](#documentation) ・ [Build](#build) ・ [Version](#version)
 
 ![version](https://img.shields.io/badge/version-1.1.2-blue)
 ![platform](https://img.shields.io/badge/platform-Windows-orange)
@@ -31,6 +31,14 @@ with layout editing, PDF/PNG export, direct printing, barcode/QR code support, a
 It supports CSV-based field mapping, layout editing, selectable PDF rendering, PDF/PNG output, direct printing, print order control, print target confirmation, duplicate cleanup, CSV merging, tag searching, print queue CSV creation, barcode/QR code elements, Japanese/English UI localization, settings backup/import, backup cleanup, crash logging, and custom app data storage locations.
 
 ![Sample price tag](docs/images/SampleTag.png)
+
+## Download and Run
+
+1. Open the [latest GitHub Release](https://github.com/StayHomeLabNet/TagPrint-Studio/releases/latest).
+2. Under **Assets**, download `TagPrintStudio.exe` for Windows x64.
+3. Double-click the downloaded `TagPrintStudio.exe` to start the application.
+
+The release build is self-contained, so a separate .NET runtime installation is not required. Download it only from this project's official GitHub Releases page.
 
 ## What's New in v1.1.2
 
@@ -322,8 +330,7 @@ Important areas:
 UI/MainForm*.cs
 UI/LayoutDesignerForm*.cs
 UI/TagFinderDialog.cs
-UI/CsvDuplicateCleanupDialog.cs
-UI/CsvMergeDialog.cs
+UI/DuplicateCleanupDialog*.cs
 UI/BackupCleanupDialog.cs
 Services/CsvLoaderService.cs
 Services/OutputService.cs
@@ -361,7 +368,7 @@ dotnet test
 Publish as a self-contained single-file Windows x64 executable:
 
 ```powershell
-dotnet publish "TagPrintStudio.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:UseAppHost=true
+dotnet publish "TagPrintStudio.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true
 ```
 
 The published executable is generated under:
@@ -375,6 +382,7 @@ bin/Release/net8.0-windows/win-x64/publish/
 ```xml
 <PackageReference Include="PDFsharp" Version="6.2.2" />
 <PackageReference Include="QRCoder" Version="1.8.0" />
+<PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
 ```
 
 ## Version

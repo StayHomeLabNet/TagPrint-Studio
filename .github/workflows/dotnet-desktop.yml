@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore TagPrintStudio.sln --locked-mode
+        run: dotnet restore TagPrintStudio.sln --locked-mode -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true
 
       - name: Package vulnerability scan
         run: dotnet list TagPrintStudio.sln package --include-transitive --vulnerable
@@ -34,3 +34,6 @@ jobs:
 
       - name: Test
         run: dotnet test TagPrintStudio.Tests/TagPrintStudio.Tests.csproj --configuration Release --no-build
+
+      - name: Publish self-contained Windows x64 executable
+        run: dotnet publish TagPrintStudio.csproj --configuration Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true --no-restore
